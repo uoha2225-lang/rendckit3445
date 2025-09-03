@@ -1,5 +1,24 @@
 const { ticketBot, reviewBot } = require('./client');
 const tokens = require('./tokens');
+const http = require('http');
+
+// إنشاء HTTP server بسيط لـ Render
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+        status: 'البوتات تعمل بنجاح',
+        bots: {
+            ticket_bot: ticketBot.user ? ticketBot.user.tag : 'غير متصل',
+            review_bot: reviewBot.user ? reviewBot.user.tag : 'غير متصل'
+        },
+        uptime: process.uptime()
+    }));
+});
+
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 HTTP Server يعمل على البورت ${PORT}`);
+});
 
 // دالة لبدء تشغيل البوتات
 async function startBots() {
