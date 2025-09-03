@@ -32,12 +32,15 @@ async function startBots() {
         }
         
         console.log('\n🚀 تم تشغيل جميع البوتات المتاحة!');
-        console.log('\n🎫 أوامر بوت التذاكر:');
-        console.log('   !تذكرة - فتح نظام التذاكر مع الأزرار');
-        console.log('   !اوامر_التذاكر - عرض الأوامر');
+        console.log('\n🎫 أوامر بوت التذاكر (Slash Commands):');
+        console.log('   /تذكرة - فتح نظام التذاكر مع الأزرار');
+        console.log('   /ticket - Open ticket system (English)');
+        console.log('   /help - عرض الأوامر');
         console.log('   • الأزرار: للشراء | للاستفسار | لحل مشكلة');
-        console.log('\n⭐ بوت التقييمات:');
-        console.log('   يعمل تلقائياً عند كتابة رقم من 1-5 في أي رسالة');
+        console.log('\n⭐ بوت التقييمات (Slash Commands + Text):');
+        console.log('   /تقييم [rating] - إرسال تقييم بالنجوم');
+        console.log('   /review [rating] - Send star rating (English)');
+        console.log('   أو اكتب رقم من 1-5 في أي رسالة (الطريقة القديمة)');
         
     } catch (error) {
         console.error('خطأ في تشغيل البوتات:', error);

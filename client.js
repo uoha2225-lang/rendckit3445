@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, SlashCommandBuilder, REST, Routes } = require('discord.js');
 const tokens = require('./tokens');
 
 // إعداد العميل للبوتات
@@ -14,21 +14,21 @@ const createBotClient = (intents = []) => {
     });
 };
 
-// بوت التذكيرات (Tickets)
+// بوت التذاكر (Tickets)
 const ticketBot = createBotClient();
 ticketBot.commands = new Collection();
-ticketBot.activeTickets = new Collection(); // لحفظ التذاكر النشطة
+ticketBot.activeTickets = new Collection();
 
 // بوت التقييمات
 const reviewBot = createBotClient();
-reviewBot.reviewStats = new Collection(); // لحفظ إحصائيات التقييمات
+reviewBot.reviewStats = new Collection();
 
 // وظائف مساعدة للتذاكر
 const createTicketMainEmbed = () => {
     return new EmbedBuilder()
         .setTitle('أهتم    تذكرتك    واحضر    مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('https://i.imgur.com/qren-store-bg.png') // ستحتاج لرفع صورة Qren Store
+        .setImage('https://i.imgur.com/qren-store-bg.png')
         .setColor(0x2F3136)
         .setTimestamp();
 };
@@ -49,7 +49,7 @@ const createTicketEmbed = (ticketType, description, user) => {
             { name: 'التاريخ:', value: new Date().toLocaleString('ar-SA'), inline: true }
         )
         .setColor(0x00AE86)
-        .setImage('https://i.imgur.com/qren-store-logo.png') // صورة Qren Store كما طلبت
+        .setImage('https://i.imgur.com/qren-store-logo.png')
         .setTimestamp()
         .setFooter({ text: 'نظام التذاكر' });
     
@@ -104,7 +104,7 @@ const createTicketOptionsButtons = () => {
                 .setCustomId('ticket_buy')
                 .setLabel('للشراء')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('🛍️'),
+                .setEmoji('🛒'),
             new ButtonBuilder()
                 .setCustomId('ticket_inquiry')
                 .setLabel('للاستفسار')
@@ -119,125 +119,230 @@ const createTicketOptionsButtons = () => {
     return row;
 };
 
-// أوامر بوت التذاكر
-ticketBot.on('ready', () => {
-    console.log(`بوت التذاكر جاهز! مسجل باسم ${ticketBot.user.tag}`);
-});
+// إعداد slash commands للتذاكر
+const ticketCommands = [
+    new SlashCommandBuilder()
+        .setName('تذكرة')
+        .setDescription('فتح نظام التذاكر مع الأزرار التفاعلية'),
+    new SlashCommandBuilder()
+        .setName('ticket')
+        .setDescription('Open the ticket system with interactive buttons'),
+    new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('عرض قائمة الأوامر المتاحة')
+        .setDescriptionLocalizations({
+            'en-US': 'Show available commands list'
+        })
+];
 
-ticketBot.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-    if (!message.content.startsWith(tokens.PREFIX)) return;
+// إعداد slash commands للتقييمات
+const reviewCommands = [
+    new SlashCommandBuilder()
+        .setName('تقييم')
+        .setDescription('إرسال تقييم بالنجوم')
+        .addIntegerOption(option =>
+            option.setName('rating')
+                .setDescription('التقييم من 1 إلى 5 نجوم')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(5)
+        ),
+    new SlashCommandBuilder()
+        .setName('review')
+        .setDescription('Send a star rating')
+        .addIntegerOption(option =>
+            option.setName('rating')
+                .setDescription('Rating from 1 to 5 stars')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(5)
+        )
+];
 
-    const args = message.content.slice(tokens.PREFIX.length).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
-
+// تسجيل slash commands للتذاكر
+async function registerTicketCommands() {
     try {
-        switch (command) {
-            case 'تذكرة':
-            case 'ticket':
-                const mainEmbed = createTicketMainEmbed();
-                const mainButton = createTicketMainButton();
-                
-                await message.channel.send({ 
-                    embeds: [mainEmbed], 
-                    components: [mainButton] 
-                });
-                await message.delete().catch(() => {});
-                break;
-
-            case 'اوامر_التذاكر':
-            case 'help':
-                const helpEmbed = new EmbedBuilder()
-                    .setTitle('📋 أوامر بوت التذاكر')
-                    .setDescription(
-                        `**الأوامر المتاحة:**\n\n` +
-                        `\`!تذكرة\` - فتح نظام التذاكر\n` +
-                        `\`!اوامر_التذاكر\` - عرض هذه القائمة`
-                    )
-                    .setColor(0x3498db);
-                
-                await message.channel.send({ embeds: [helpEmbed] });
-                break;
+        if (tokens.REMINDER_BOT_TOKEN && ticketBot.user) {
+            const rest = new REST({ version: '10' }).setToken(tokens.REMINDER_BOT_TOKEN);
+            
+            console.log('بدء تسجيل slash commands للتذاكر...');
+            await rest.put(
+                Routes.applicationCommands(ticketBot.user.id),
+                { body: ticketCommands }
+            );
+            console.log('✅ تم تسجيل slash commands للتذاكر بنجاح');
         }
     } catch (error) {
-        console.error('خطأ في بوت التذاكر:', error);
-        message.reply('حدث خطأ أثناء تنفيذ الأمر.');
+        console.error('خطأ في تسجيل slash commands للتذاكر:', error);
     }
-});
+}
 
-// معالجة الأزرار
-ticketBot.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-
+// تسجيل slash commands للتقييمات
+async function registerReviewCommands() {
     try {
-        switch (interaction.customId) {
-            case 'open_ticket_menu':
-                const optionsEmbed = createTicketOptionsEmbed();
-                const optionsButtons = createTicketOptionsButtons();
-                
-                await interaction.update({ 
-                    embeds: [optionsEmbed], 
-                    components: [optionsButtons] 
-                });
-                break;
-
-            case 'ticket_buy':
-                const buyEmbed = createTicketEmbed(
-                    'للشراء',
-                    'هذه التذكرة مخصصة لشراء المنتجات',
-                    interaction.user
-                );
-                
-                await interaction.reply({ 
-                    embeds: [buyEmbed], 
-                    ephemeral: false 
-                });
-                break;
-
-            case 'ticket_inquiry':
-                const inquiryEmbed = createTicketEmbed(
-                    'للاستفسار',
-                    'هذه التذكرة مخصصة للإجابة على استفساراتكم',
-                    interaction.user
-                );
-                
-                await interaction.reply({ 
-                    embeds: [inquiryEmbed], 
-                    ephemeral: false 
-                });
-                break;
-
-            case 'ticket_problem':
-                const problemEmbed = createTicketEmbed(
-                    'لحل مشكلة',
-                    'هذه التذكرة مخصصة في حال كان لديك مشكلة',
-                    interaction.user
-                );
-                
-                await interaction.reply({ 
-                    embeds: [problemEmbed], 
-                    ephemeral: false 
-                });
-                break;
+        if (tokens.REVIEW_BOT_TOKEN && reviewBot.user) {
+            const rest = new REST({ version: '10' }).setToken(tokens.REVIEW_BOT_TOKEN);
+            
+            console.log('بدء تسجيل slash commands للتقييمات...');
+            await rest.put(
+                Routes.applicationCommands(reviewBot.user.id),
+                { body: reviewCommands }
+            );
+            console.log('✅ تم تسجيل slash commands للتقييمات بنجاح');
         }
     } catch (error) {
-        console.error('خطأ في معالجة الأزرار:', error);
-        if (!interaction.replied) {
-            await interaction.reply({ content: 'حدث خطأ أثناء معالجة طلبك', ephemeral: true });
+        console.error('خطأ في تسجيل slash commands للتقييمات:', error);
+    }
+}
+
+// بوت التذاكر
+ticketBot.once('ready', async () => {
+    console.log(`بوت التذاكر جاهز! مسجل باسم ${ticketBot.user.tag}`);
+    await registerTicketCommands();
+});
+
+// معالجة slash commands للتذاكر
+ticketBot.on('interactionCreate', async (interaction) => {
+    if (interaction.isChatInputCommand()) {
+        const { commandName } = interaction;
+
+        try {
+            switch (commandName) {
+                case 'تذكرة':
+                case 'ticket':
+                    const mainEmbed = createTicketMainEmbed();
+                    const mainButton = createTicketMainButton();
+                    
+                    await interaction.reply({ 
+                        embeds: [mainEmbed], 
+                        components: [mainButton] 
+                    });
+                    break;
+
+                case 'help':
+                    const helpEmbed = new EmbedBuilder()
+                        .setTitle('📋 أوامر بوت التذاكر')
+                        .setDescription(
+                            `**الأوامر المتاحة:**\n\n` +
+                            `\`/تذكرة\` - فتح نظام التذاكر\n` +
+                            `\`/ticket\` - Open ticket system (English)\n` +
+                            `\`/help\` - عرض هذه القائمة`
+                        )
+                        .setColor(0x3498db);
+                    
+                    await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
+                    break;
+            }
+        } catch (error) {
+            console.error('خطأ في معالجة slash command:', error);
+            if (!interaction.replied) {
+                await interaction.reply({ content: 'حدث خطأ أثناء تنفيذ الأمر', ephemeral: true });
+            }
+        }
+    } else if (interaction.isButton()) {
+        try {
+            switch (interaction.customId) {
+                case 'open_ticket_menu':
+                    const optionsEmbed = createTicketOptionsEmbed();
+                    const optionsButtons = createTicketOptionsButtons();
+                    
+                    await interaction.update({ 
+                        embeds: [optionsEmbed], 
+                        components: [optionsButtons] 
+                    });
+                    break;
+
+                case 'ticket_buy':
+                    const buyEmbed = createTicketEmbed(
+                        'للشراء',
+                        'هذه التذكرة مخصصة لشراء المنتجات',
+                        interaction.user
+                    );
+                    
+                    await interaction.reply({ 
+                        embeds: [buyEmbed], 
+                        ephemeral: false 
+                    });
+                    break;
+
+                case 'ticket_inquiry':
+                    const inquiryEmbed = createTicketEmbed(
+                        'للاستفسار',
+                        'هذه التذكرة مخصصة للإجابة على استفساراتكم',
+                        interaction.user
+                    );
+                    
+                    await interaction.reply({ 
+                        embeds: [inquiryEmbed], 
+                        ephemeral: false 
+                    });
+                    break;
+
+                case 'ticket_problem':
+                    const problemEmbed = createTicketEmbed(
+                        'لحل مشكلة',
+                        'هذه التذكرة مخصصة في حال كان لديك مشكلة',
+                        interaction.user
+                    );
+                    
+                    await interaction.reply({ 
+                        embeds: [problemEmbed], 
+                        ephemeral: false 
+                    });
+                    break;
+            }
+        } catch (error) {
+            console.error('خطأ في معالجة الأزرار:', error);
+            if (!interaction.replied) {
+                await interaction.reply({ content: 'حدث خطأ أثناء معالجة طلبك', ephemeral: true });
+            }
         }
     }
 });
 
 // بوت التقييمات
-reviewBot.on('ready', () => {
+reviewBot.once('ready', async () => {
     console.log(`بوت التقييمات جاهز! مسجل باسم ${reviewBot.user.tag}`);
+    await registerReviewCommands();
 });
 
+// معالجة slash commands للتقييمات
+reviewBot.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const { commandName } = interaction;
+
+    try {
+        if (commandName === 'تقييم' || commandName === 'review') {
+            const rating = interaction.options.getInteger('rating');
+            
+            // الحصول على إحصائيات التقييم للمستخدم
+            const userId = interaction.user.id;
+            let userStats = reviewBot.reviewStats.get(userId) || { count: 0, lastReviewId: 2000 };
+            userStats.count++;
+            userStats.lastReviewId++;
+            reviewBot.reviewStats.set(userId, userStats);
+            
+            // إنشاء embed التقييم
+            const reviewEmbed = createReviewEmbed(rating, interaction.user, userStats.lastReviewId, userStats.count);
+            
+            // إرسال التقييم
+            await interaction.reply({ embeds: [reviewEmbed] });
+        }
+    } catch (error) {
+        console.error('خطأ في بوت التقييمات:', error);
+        if (!interaction.replied) {
+            await interaction.reply({ content: 'حدث خطأ أثناء إرسال التقييم', ephemeral: true });
+        }
+    }
+});
+
+// للاحتفاظ بالطريقة القديمة للتقييم (كتابة رقم في الرسالة)
 reviewBot.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
     // التحقق من وجود أرقام في الرسالة (تقييم من 1-5)
-    const ratingMatch = message.content.match(/[1-5]/);
+    const ratingMatch = message.content.match(/^[1-5]$/);
     if (!ratingMatch) return;
     
     const rating = parseInt(ratingMatch[0]);
@@ -270,5 +375,7 @@ module.exports = {
     createTicketMainEmbed,
     createTicketOptionsEmbed,
     createTicketEmbed,
-    createReviewEmbed
+    createReviewEmbed,
+    registerTicketCommands,
+    registerReviewCommands
 };
