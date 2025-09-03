@@ -22,14 +22,15 @@ ticketBot.activeTickets = new Collection();
 // بوت التقييمات
 const reviewBot = createBotClient();
 reviewBot.reviewStats = new Collection();
+reviewBot.reviewChannels = new Collection(); // لحفظ الرومز المخصصة للتقييم
 
 // وظائف مساعدة للتذاكر
 const createTicketMainEmbed = () => {
     return new EmbedBuilder()
-        .setTitle('أهتم    تذكرتك    واحضر    مايناسبك')
+        .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('https://i.imgur.com/qren-store-bg.png')
-        .setColor(0x2F3136)
+        .setImage('attachment://qren-store-logo.png')
+        .setColor(0x000000)
         .setTimestamp();
 };
 
@@ -130,19 +131,16 @@ const createTicketOptionsButtons = () => {
         .addComponents(
             new ButtonBuilder()
                 .setCustomId('ticket_buy')
-                .setLabel('للشراء')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('🛒'),
+                .setLabel('شراء منتج')
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('ticket_inquiry')
-                .setLabel('للاستفسار')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji('❓'),
+                .setLabel('استفسار')
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('ticket_problem')
                 .setLabel('لحل مشكلة')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('🔧')
         );
     return row;
 };
@@ -184,6 +182,22 @@ const reviewCommands = [
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(5)
+        ),
+    new SlashCommandBuilder()
+        .setName('اختيار_روم_تقييم')
+        .setDescription('اختيار الروم المخصص للتقييمات')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('الروم الذي سيتم تحويل الرسائل فيه إلى تقييمات')
+                .setRequired(true)
+        ),
+    new SlashCommandBuilder()
+        .setName('set_review_room')
+        .setDescription('Set the room for automatic reviews')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('The channel where messages will be converted to reviews')
+                .setRequired(true)
         )
 ];
 
@@ -275,9 +289,14 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     const mainEmbed = createTicketMainEmbed();
                     const mainButton = createTicketMainButton();
                     
+                    // إرسال الصورة مع الembed
+                    const { AttachmentBuilder } = require('discord.js');
+                    const attachment = new AttachmentBuilder('images/qren-store-logo.png', { name: 'qren-store-logo.png' });
+                    
                     await interaction.reply({ 
                         embeds: [mainEmbed], 
-                        components: [mainButton] 
+                        components: [mainButton],
+                        files: [attachment]
                     });
                     break;
 
@@ -316,7 +335,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
 
                 case 'ticket_buy':
                     const buyEmbed = createTicketEmbed(
-                        'للشراء',
+                        'شراء منتج',
                         'هذه التذكرة مخصصة لشراء المنتجات',
                         interaction.user
                     );
@@ -329,7 +348,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
 
                 case 'ticket_inquiry':
                     const inquiryEmbed = createTicketEmbed(
-                        'للاستفسار',
+                        'استفسار',
                         'هذه التذكرة مخصصة للإجابة على استفساراتكم',
                         interaction.user
                     );
@@ -390,6 +409,19 @@ reviewBot.on('interactionCreate', async (interaction) => {
             
             // إرسال التقييم
             await interaction.reply({ embeds: [reviewEmbed] });
+        } else if (commandName === 'اختيار_روم_تقييم' || commandName === 'set_review_room') {
+            const channel = interaction.options.getChannel('channel');
+            const guildId = interaction.guild.id;
+            
+            // حفظ الروم المخصص للتقييم
+            reviewBot.reviewChannels.set(guildId, channel.id);
+            
+            const successEmbed = new EmbedBuilder()
+                .setTitle('✅ تم تحديد روم التقييم')
+                .setDescription(`تم تحديد ${channel} كروم للتقييمات.\nالآن أي رسالة ترسل في هذا الروم ستتحول تلقائياً إلى تقييم.`)
+                .setColor(0x00AE86);
+            
+            await interaction.reply({ embeds: [successEmbed], ephemeral: true });
         }
     } catch (error) {
         console.error('خطأ في بوت التقييمات:', error);
@@ -399,11 +431,18 @@ reviewBot.on('interactionCreate', async (interaction) => {
     }
 });
 
-// بوت التقييم يعمل في القنوات المخصصة فقط
+// بوت التقييم يعمل في الروم المحددة أو القنوات المسماة للتقييم
 reviewBot.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
-    // التحقق إذا كانت القناة تحتوي على كلمة "تقييم" أو "review" في الاسم
+    const guildId = message.guild?.id;
+    const channelId = message.channel.id;
+    
+    // التحقق إذا كان هذا الروم محدد للتقييمات
+    const selectedReviewChannel = reviewBot.reviewChannels.get(guildId);
+    const isSelectedChannel = selectedReviewChannel === channelId;
+    
+    // أو التحقق إذا كانت القناة تحتوي على كلمة "تقييم" أو "review" في الاسم
     const channelName = message.channel.name ? message.channel.name.toLowerCase() : '';
     const isReviewChannel = channelName.includes('تقييم') || 
                            channelName.includes('review') || 
@@ -413,7 +452,7 @@ reviewBot.on('messageCreate', async (message) => {
     // أو إذا كانت الرسالة تحتوي على رقم من 1-5 فقط
     const isRatingMessage = /^[1-5]$/.test(message.content.trim());
     
-    if (isReviewChannel || isRatingMessage) {
+    if (isSelectedChannel || isReviewChannel || isRatingMessage) {
         try {
             // حذف الرسالة الأصلية
             await message.delete().catch(() => {});
