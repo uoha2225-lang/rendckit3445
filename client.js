@@ -19,11 +19,61 @@ const ticketBot = createBotClient();
 ticketBot.commands = new Collection();
 ticketBot.activeTickets = new Collection();
 ticketBot.adminRoles = new Collection(); // لحفظ رتب مشرفين التذاكر
+ticketBot.logChannels = new Collection(); // لحفظ رومز سجلات التذاكر
 
 // بوت التقييمات
 const reviewBot = createBotClient();
 reviewBot.reviewStats = new Collection();
 reviewBot.reviewChannels = new Collection(); // لحفظ الرومز المخصصة للتقييم
+
+// دالة إرسال سجلات التذاكر
+const sendTicketLog = async (ticketChannel, closedBy, action) => {
+    try {
+        const guildId = ticketChannel.guild.id;
+        const logChannelId = ticketBot.logChannels.get(guildId);
+        
+        if (!logChannelId) return; // لا يوجد روم سجلات محدد
+        
+        const logChannel = ticketChannel.guild.channels.cache.get(logChannelId);
+        if (!logChannel) return; // روم السجلات غير موجود
+        
+        // جمع آخر 50 رسالة من التذكرة
+        const messages = await ticketChannel.messages.fetch({ limit: 50 });
+        const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+        
+        // إنشاء ملخص المحادثة
+        let conversation = '';
+        sortedMessages.forEach(msg => {
+            if (msg.author.bot && msg.embeds.length > 0) {
+                // تخطي رسائل البوت مع embeds
+                return;
+            }
+            const timestamp = new Date(msg.createdTimestamp).toLocaleString('ar-SA');
+            conversation += `[${timestamp}] ${msg.author.username}: ${msg.content || '[مرفق/embed]'}\n`;
+        });
+        
+        // قص المحادثة إذا كانت طويلة جداً
+        if (conversation.length > 4000) {
+            conversation = conversation.substring(0, 4000) + '\n... (تم قص الرسائل الطويلة)';
+        }
+        
+        const logEmbed = new EmbedBuilder()
+            .setTitle('📋 سجل تذكرة')
+            .addFields(
+                { name: 'اسم التذكرة:', value: ticketChannel.name, inline: true },
+                { name: 'الإجراء:', value: action, inline: true },
+                { name: 'تم بواسطة:', value: `<@${closedBy.id}>`, inline: true },
+                { name: 'التاريخ والوقت:', value: new Date().toLocaleString('ar-SA'), inline: false },
+                { name: 'المحادثة:', value: conversation.length > 0 ? `\`\`\`\n${conversation}\n\`\`\`` : 'لا توجد رسائل', inline: false }
+            )
+            .setColor(0xe74c3c)
+            .setTimestamp();
+        
+        await logChannel.send({ embeds: [logEmbed] });
+    } catch (error) {
+        console.error('خطأ في إرسال سجل التذكرة:', error);
+    }
+};
 
 // وظائف مساعدة للتذاكر
 const createTicketMainEmbed = () => {
@@ -146,6 +196,24 @@ const createTicketOptionsButtons = () => {
     return row;
 };
 
+// إنشاء أزرار إدارة التذاكر
+const createTicketManageButtons = () => {
+    const row = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('claim_ticket')
+                .setLabel('استلام التذكرة')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('👤'),
+            new ButtonBuilder()
+                .setCustomId('close_ticket')
+                .setLabel('قفل التذكرة')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🔒')
+        );
+    return row;
+};
+
 // إعداد slash commands للتذاكر
 const ticketCommands = [
     new SlashCommandBuilder()
@@ -195,6 +263,22 @@ const ticketCommands = [
             option.setName('role')
                 .setDescription('Role to add or remove')
                 .setRequired(false)
+        ),
+    new SlashCommandBuilder()
+        .setName('سجلات_التذاكر')
+        .setDescription('تحديد روم سجلات التذاكر')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('الروم الذي سيتم إرسال سجلات التذاكر فيه')
+                .setRequired(true)
+        ),
+    new SlashCommandBuilder()
+        .setName('ticket_logs')
+        .setDescription('Set the channel for ticket logs')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('The channel where ticket logs will be sent')
+                .setRequired(true)
         )
 ];
 
@@ -346,6 +430,8 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             `\`/ticket\` - Open ticket system (English)\n` +
                             `\`/مشرفين_التذاكر\` - إدارة رتب مشرفين التذاكر\n` +
                             `\`/ticket_admins\` - Manage ticket admin roles (English)\n` +
+                            `\`/سجلات_التذاكر\` - تحديد روم سجلات التذاكر\n` +
+                            `\`/ticket_logs\` - Set ticket logs channel (English)\n` +
                             `\`/help\` - عرض هذه القائمة`
                         )
                         .setColor(0x3498db);
@@ -424,6 +510,76 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         await interaction.reply({ embeds: [listEmbed], flags: [64] });
                     }
                     break;
+                    
+                case 'سجلات_التذاكر':
+                case 'ticket_logs':
+                    const logChannel = interaction.options.getChannel('channel');
+                    const logGuildId = interaction.guild.id;
+                    
+                    // حفظ الروم المخصص للسجلات
+                    ticketBot.logChannels.set(logGuildId, logChannel.id);
+                    
+                    const logEmbed = new EmbedBuilder()
+                        .setTitle('✅ تم تحديد روم سجلات التذاكر')
+                        .setDescription(`تم تحديد ${logChannel} كروم لسجلات التذاكر.\nسيتم إرسال جميع سجلات التذاكر إلى هذا الروم.`)
+                        .setColor(0x00AE86);
+                    
+                    await interaction.reply({ embeds: [logEmbed], flags: [64] });
+                    break;
+                    
+                case 'claim_ticket':
+                    // التحقق من أن المستخدم مشرف تذاكر
+                    const claimGuildId = interaction.guild.id;
+                    const claimAdminRoles = ticketBot.adminRoles.get(claimGuildId) || [];
+                    const claimUserRoles = interaction.member.roles.cache.map(role => role.id);
+                    const claimIsAdmin = claimAdminRoles.some(roleId => claimUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
+                    
+                    if (!claimIsAdmin) {
+                        await interaction.reply({ content: 'لا يمكنك استلام التذاكر. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
+                        return;
+                    }
+                    
+                    const claimEmbed = new EmbedBuilder()
+                        .setTitle('👤 تم استلام التذكرة')
+                        .setDescription(`تم استلام هذه التذكرة من قبل ${interaction.user}\nسيتم التعامل معها في أقرب وقت.`)
+                        .setColor(0x3498db)
+                        .setTimestamp();
+                    
+                    await interaction.reply({ embeds: [claimEmbed] });
+                    break;
+                    
+                case 'close_ticket':
+                    // التحقق من أن المستخدم مشرف تذاكر
+                    const closeGuildId = interaction.guild.id;
+                    const closeAdminRoles = ticketBot.adminRoles.get(closeGuildId) || [];
+                    const closeUserRoles = interaction.member.roles.cache.map(role => role.id);
+                    const closeIsAdmin = closeAdminRoles.some(roleId => closeUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
+                    
+                    if (!closeIsAdmin) {
+                        await interaction.reply({ content: 'لا يمكنك قفل التذكرة. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
+                        return;
+                    }
+                    
+                    const closeEmbed = new EmbedBuilder()
+                        .setTitle('🔒 جاري قفل التذكرة')
+                        .setDescription('سيتم قفل هذه التذكرة في غضون 10 ثوان...')
+                        .setColor(0xe74c3c)
+                        .setTimestamp();
+                    
+                    await interaction.reply({ embeds: [closeEmbed] });
+                    
+                    // إرسال السجل قبل الحذف
+                    await sendTicketLog(interaction.channel, interaction.user, 'قفل التذكرة');
+                    
+                    // حذف القناة بعد 10 ثوان
+                    setTimeout(async () => {
+                        try {
+                            await interaction.channel.delete();
+                        } catch (error) {
+                            console.error('خطأ في حذف قناة التذكرة:', error);
+                        }
+                    }, 10000);
+                    break;
             }
         } catch (error) {
             console.error('خطأ في معالجة slash command:', error);
@@ -479,12 +635,13 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         interaction.user
                     );
                     
-                    // إرسال رسالة في الروم الجديد
-                    await buyChannel.send({ embeds: [buyEmbed] });
+                    // إرسال رسالة في الروم الجديد مع أزرار الإدارة
+                    const buyManageButtons = createTicketManageButtons();
+                    await buyChannel.send({ embeds: [buyEmbed], components: [buyManageButtons] });
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة شراء منتج في ${buyChannel}`, 
-                        ephemeral: true 
+                        flags: [64] 
                     });
                     break;
 
@@ -523,12 +680,13 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         interaction.user
                     );
                     
-                    // إرسال رسالة في الروم الجديد
-                    await inquiryChannel.send({ embeds: [inquiryEmbed] });
+                    // إرسال رسالة في الروم الجديد مع أزرار الإدارة
+                    const inquiryManageButtons = createTicketManageButtons();
+                    await inquiryChannel.send({ embeds: [inquiryEmbed], components: [inquiryManageButtons] });
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة استفسار في ${inquiryChannel}`, 
-                        ephemeral: true 
+                        flags: [64] 
                     });
                     break;
 
@@ -567,12 +725,13 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         interaction.user
                     );
                     
-                    // إرسال رسالة في الروم الجديد
-                    await problemChannel.send({ embeds: [problemEmbed] });
+                    // إرسال رسالة في الروم الجديد مع أزرار الإدارة
+                    const problemManageButtons = createTicketManageButtons();
+                    await problemChannel.send({ embeds: [problemEmbed], components: [problemManageButtons] });
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة حل مشكلة في ${problemChannel}`, 
-                        ephemeral: true 
+                        flags: [64] 
                     });
                     break;
             }
