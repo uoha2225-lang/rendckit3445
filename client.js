@@ -400,11 +400,19 @@ ticketBot.once('ready', async () => {
 });
 
 // معالجة slash commands للتذاكر
+// منع معالجة interactions متعددة
+const processedInteractions = new Set();
+
 ticketBot.on('interactionCreate', async (interaction) => {
-    // تجنب معالجة نفس interaction مرتين
-    if (interaction.replied || interaction.deferred) {
+    // منع معالجة نفس interaction
+    if (processedInteractions.has(interaction.id) || interaction.replied || interaction.deferred) {
         return;
     }
+    
+    processedInteractions.add(interaction.id);
+    
+    // تنظيف المعرفات القديمة كل دقيقة
+    setTimeout(() => processedInteractions.delete(interaction.id), 60000);
     
     if (interaction.isChatInputCommand()) {
         const { commandName } = interaction;
@@ -416,15 +424,19 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     const mainEmbed = createTicketMainEmbed();
                     const mainButton = createTicketMainButton();
                     
-                    // إرسال الصورة مع الembed
-                    const { AttachmentBuilder } = require('discord.js');
-                    const attachment = new AttachmentBuilder('images/qren-store-logo.png', { name: 'qren-store-logo.png' });
-                    
-                    await interaction.reply({ 
-                        embeds: [mainEmbed], 
-                        components: [mainButton],
-                        files: [attachment]
-                    });
+                    try {
+                        // إرسال الصورة مع الembed
+                        const { AttachmentBuilder } = require('discord.js');
+                        const attachment = new AttachmentBuilder('images/qren-store-logo.png', { name: 'qren-store-logo.png' });
+                        
+                        await interaction.reply({ 
+                            embeds: [mainEmbed], 
+                            components: [mainButton],
+                            files: [attachment]
+                        });
+                    } catch (replyError) {
+                        console.error('خطأ في الرد على أمر التذكرة:', replyError.message);
+                    }
                     break;
 
                 case 'help':
@@ -442,7 +454,11 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         )
                         .setColor(0x3498db);
                     
-                    await interaction.reply({ embeds: [helpEmbed], flags: [64] });
+                    try {
+                        await interaction.reply({ embeds: [helpEmbed], flags: [64] });
+                    } catch (replyError) {
+                        console.error('خطأ في الرد على أمر المساعدة:', replyError.message);
+                    }
                     break;
                     
                 case 'مشرفين_التذاكر':
@@ -461,7 +477,9 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         }
                         
                         if (adminRoles.includes(role.id)) {
-                            await interaction.reply({ content: `الرتبة ${role.name} موجودة بالفعل في قائمة مشرفين التذاكر`, flags: [64] });
+                            try {
+                                await interaction.reply({ content: `الرتبة ${role.name} موجودة بالفعل في قائمة مشرفين التذاكر`, flags: [64] });
+                            } catch (e) { console.log('خطأ في الرد'); }
                             break;
                         }
                         
@@ -473,7 +491,9 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             .setDescription(`تم إضافة الرتبة ${role} إلى قائمة مشرفين التذاكر`)
                             .setColor(0x00AE86);
                         
-                        await interaction.reply({ embeds: [addEmbed], flags: [64] });
+                        try {
+                            await interaction.reply({ embeds: [addEmbed], flags: [64] });
+                        } catch (e) { console.log('خطأ في الرد'); }
                         
                     } else if (action === 'remove') {
                         if (!role) {
@@ -495,7 +515,9 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             .setDescription(`تم إزالة الرتبة ${role} من قائمة مشرفين التذاكر`)
                             .setColor(0xe74c3c);
                         
-                        await interaction.reply({ embeds: [removeEmbed], flags: [64] });
+                        try {
+                            await interaction.reply({ embeds: [removeEmbed], flags: [64] });
+                        } catch (e) { console.log('خطأ في الرد'); }
                         
                     } else if (action === 'list') {
                         if (adminRoles.length === 0) {
@@ -513,7 +535,9 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             .setDescription(rolesList)
                             .setColor(0x3498db);
                         
-                        await interaction.reply({ embeds: [listEmbed], flags: [64] });
+                        try {
+                            await interaction.reply({ embeds: [listEmbed], flags: [64] });
+                        } catch (e) { console.log('خطأ في الرد'); }
                     }
                     break;
                     
@@ -530,7 +554,9 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         .setDescription(`تم تحديد ${logChannel} كروم لسجلات التذاكر.\nسيتم إرسال جميع سجلات التذاكر إلى هذا الروم.`)
                         .setColor(0x00AE86);
                     
-                    await interaction.reply({ embeds: [logEmbed], flags: [64] });
+                    try {
+                        await interaction.reply({ embeds: [logEmbed], flags: [64] });
+                    } catch (e) { console.log('خطأ في الرد'); }
                     break;
                     
                 case 'claim_ticket':
@@ -592,14 +618,8 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     break;
             }
         } catch (error) {
-            console.error('خطأ في معالجة slash command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                try {
-                    await interaction.reply({ content: 'حدث خطأ أثناء تنفيذ الأمر', flags: [64] });
-                } catch (replyError) {
-                    console.error('خطأ في الرد على interaction:', replyError);
-                }
-            }
+            console.error('خطأ في معالجة slash command:', error.message || error);
+            // عدم الرد على الأخطاء لتجنب interaction acknowledged errors
         }
     } else if (interaction.isButton()) {
         try {
@@ -816,14 +836,8 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     break;
             }
         } catch (error) {
-            console.error('خطأ في معالجة الأزرار:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                try {
-                    await interaction.reply({ content: 'حدث خطأ أثناء معالجة طلبك', flags: [64] });
-                } catch (replyError) {
-                    console.error('خطأ في الرد على interaction:', replyError);
-                }
-            }
+            console.error('خطأ في معالجة الأزرار:', error.message || error);
+            // عدم الرد على الأخطاء لتجنب interaction acknowledged errors
         }
     }
 });
