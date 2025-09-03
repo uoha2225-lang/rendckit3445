@@ -20,6 +20,7 @@ ticketBot.commands = new Collection();
 ticketBot.activeTickets = new Collection();
 ticketBot.adminRoles = new Collection(); // لحفظ رتب مشرفين التذاكر
 ticketBot.logChannels = new Collection(); // لحفظ رومز سجلات التذاكر
+ticketBot.cooldowns = new Map(); // لمنع الضغط المتكرر
 
 // بوت التقييمات
 const reviewBot = createBotClient();
@@ -536,7 +537,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     if (!claimIsAdmin) {
                         await interaction.reply({ content: 'لا يمكنك استلام التذاكر. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
-                        return;
+                        break;
                     }
                     
                     const claimEmbed = new EmbedBuilder()
@@ -557,7 +558,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     if (!closeIsAdmin) {
                         await interaction.reply({ content: 'لا يمكنك قفل التذكرة. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
-                        return;
+                        break;
                     }
                     
                     const closeEmbed = new EmbedBuilder()
@@ -569,7 +570,11 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     await interaction.reply({ embeds: [closeEmbed] });
                     
                     // إرسال السجل قبل الحذف
-                    await sendTicketLog(interaction.channel, interaction.user, 'قفل التذكرة');
+                    try {
+                        await sendTicketLog(interaction.channel, interaction.user, 'قفل التذكرة');
+                    } catch (logError) {
+                        console.error('خطأ في إرسال سجل التذكرة:', logError);
+                    }
                     
                     // حذف القناة بعد 10 ثوان
                     setTimeout(async () => {
@@ -583,8 +588,12 @@ ticketBot.on('interactionCreate', async (interaction) => {
             }
         } catch (error) {
             console.error('خطأ في معالجة slash command:', error);
-            if (!interaction.replied) {
-                await interaction.reply({ content: 'حدث خطأ أثناء تنفيذ الأمر', ephemeral: true });
+            if (!interaction.replied && !interaction.deferred) {
+                try {
+                    await interaction.reply({ content: 'حدث خطأ أثناء تنفيذ الأمر', flags: [64] });
+                } catch (replyError) {
+                    console.error('خطأ في الرد على interaction:', replyError);
+                }
             }
         }
     } else if (interaction.isButton()) {
@@ -601,6 +610,28 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     break;
 
                 case 'ticket_buy':
+                    // فحص cooldown لمنع إنشاء تذاكر متعددة
+                    const buyUserId = interaction.user.id;
+                    const buyCooldownKey = `${buyUserId}-ticket`;
+                    const buyNow = Date.now();
+                    const buyCooldownAmount = 10000; // 10 ثوان
+                    
+                    if (ticketBot.cooldowns.has(buyCooldownKey)) {
+                        const buyExpirationTime = ticketBot.cooldowns.get(buyCooldownKey) + buyCooldownAmount;
+                        
+                        if (buyNow < buyExpirationTime) {
+                            const buyTimeLeft = (buyExpirationTime - buyNow) / 1000;
+                            await interaction.reply({ 
+                                content: `يجب الانتظار ${buyTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
+                                flags: [64] 
+                            });
+                            break;
+                        }
+                    }
+                    
+                    ticketBot.cooldowns.set(buyCooldownKey, buyNow);
+                    setTimeout(() => ticketBot.cooldowns.delete(buyCooldownKey), buyCooldownAmount);
+                    
                     // إنشاء روم تذكرة جديد
                     const guildAdminRoles = ticketBot.adminRoles.get(interaction.guild.id) || [];
                     const permissionOverwrites = [
@@ -646,6 +677,28 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     break;
 
                 case 'ticket_inquiry':
+                    // فحص cooldown لمنع إنشاء تذاكر متعددة
+                    const inquiryUserId = interaction.user.id;
+                    const inquiryCooldownKey = `${inquiryUserId}-ticket`;
+                    const inquiryNow = Date.now();
+                    const inquiryCooldownAmount = 10000; // 10 ثوان
+                    
+                    if (ticketBot.cooldowns.has(inquiryCooldownKey)) {
+                        const inquiryExpirationTime = ticketBot.cooldowns.get(inquiryCooldownKey) + inquiryCooldownAmount;
+                        
+                        if (inquiryNow < inquiryExpirationTime) {
+                            const inquiryTimeLeft = (inquiryExpirationTime - inquiryNow) / 1000;
+                            await interaction.reply({ 
+                                content: `يجب الانتظار ${inquiryTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
+                                flags: [64] 
+                            });
+                            break;
+                        }
+                    }
+                    
+                    ticketBot.cooldowns.set(inquiryCooldownKey, inquiryNow);
+                    setTimeout(() => ticketBot.cooldowns.delete(inquiryCooldownKey), inquiryCooldownAmount);
+                    
                     // إنشاء روم تذكرة جديد
                     const inquiryGuildAdminRoles = ticketBot.adminRoles.get(interaction.guild.id) || [];
                     const inquiryPermissionOverwrites = [
@@ -691,6 +744,28 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     break;
 
                 case 'ticket_problem':
+                    // فحص cooldown لمنع إنشاء تذاكر متعددة
+                    const problemUserId = interaction.user.id;
+                    const problemCooldownKey = `${problemUserId}-ticket`;
+                    const problemNow = Date.now();
+                    const problemCooldownAmount = 10000; // 10 ثوان
+                    
+                    if (ticketBot.cooldowns.has(problemCooldownKey)) {
+                        const problemExpirationTime = ticketBot.cooldowns.get(problemCooldownKey) + problemCooldownAmount;
+                        
+                        if (problemNow < problemExpirationTime) {
+                            const problemTimeLeft = (problemExpirationTime - problemNow) / 1000;
+                            await interaction.reply({ 
+                                content: `يجب الانتظار ${problemTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
+                                flags: [64] 
+                            });
+                            break;
+                        }
+                    }
+                    
+                    ticketBot.cooldowns.set(problemCooldownKey, problemNow);
+                    setTimeout(() => ticketBot.cooldowns.delete(problemCooldownKey), problemCooldownAmount);
+                    
                     // إنشاء روم تذكرة جديد
                     const problemGuildAdminRoles = ticketBot.adminRoles.get(interaction.guild.id) || [];
                     const problemPermissionOverwrites = [
@@ -737,8 +812,12 @@ ticketBot.on('interactionCreate', async (interaction) => {
             }
         } catch (error) {
             console.error('خطأ في معالجة الأزرار:', error);
-            if (!interaction.replied) {
-                await interaction.reply({ content: 'حدث خطأ أثناء معالجة طلبك', ephemeral: true });
+            if (!interaction.replied && !interaction.deferred) {
+                try {
+                    await interaction.reply({ content: 'حدث خطأ أثناء معالجة طلبك', flags: [64] });
+                } catch (replyError) {
+                    console.error('خطأ في الرد على interaction:', replyError);
+                }
             }
         }
     }
