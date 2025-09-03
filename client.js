@@ -558,64 +558,6 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         await interaction.reply({ embeds: [logEmbed], flags: [64] });
                     } catch (e) { console.log('خطأ في الرد'); }
                     break;
-                    
-                case 'claim_ticket':
-                    // التحقق من أن المستخدم مشرف تذاكر
-                    const claimGuildId = interaction.guild.id;
-                    const claimAdminRoles = ticketBot.adminRoles.get(claimGuildId) || [];
-                    const claimUserRoles = interaction.member.roles.cache.map(role => role.id);
-                    const claimIsAdmin = claimAdminRoles.some(roleId => claimUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
-                    
-                    if (!claimIsAdmin) {
-                        await interaction.reply({ content: 'لا يمكنك استلام التذاكر. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
-                        break;
-                    }
-                    
-                    const claimEmbed = new EmbedBuilder()
-                        .setTitle('👤 تم استلام التذكرة')
-                        .setDescription(`تم استلام هذه التذكرة من قبل ${interaction.user}\nسيتم التعامل معها في أقرب وقت.`)
-                        .setColor(0x3498db)
-                        .setTimestamp();
-                    
-                    await interaction.reply({ embeds: [claimEmbed] });
-                    break;
-                    
-                case 'close_ticket':
-                    // التحقق من أن المستخدم مشرف تذاكر
-                    const closeGuildId = interaction.guild.id;
-                    const closeAdminRoles = ticketBot.adminRoles.get(closeGuildId) || [];
-                    const closeUserRoles = interaction.member.roles.cache.map(role => role.id);
-                    const closeIsAdmin = closeAdminRoles.some(roleId => closeUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
-                    
-                    if (!closeIsAdmin) {
-                        await interaction.reply({ content: 'لا يمكنك قفل التذكرة. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
-                        break;
-                    }
-                    
-                    const closeEmbed = new EmbedBuilder()
-                        .setTitle('🔒 جاري قفل التذكرة')
-                        .setDescription('سيتم قفل هذه التذكرة في غضون 10 ثوان...')
-                        .setColor(0xe74c3c)
-                        .setTimestamp();
-                    
-                    await interaction.reply({ embeds: [closeEmbed] });
-                    
-                    // إرسال السجل قبل الحذف
-                    try {
-                        await sendTicketLog(interaction.channel, interaction.user, 'قفل التذكرة');
-                    } catch (logError) {
-                        console.error('خطأ في إرسال سجل التذكرة:', logError);
-                    }
-                    
-                    // حذف القناة بعد 10 ثوان
-                    setTimeout(async () => {
-                        try {
-                            await interaction.channel.delete();
-                        } catch (error) {
-                            console.error('خطأ في حذف قناة التذكرة:', error);
-                        }
-                    }, 10000);
-                    break;
             }
         } catch (error) {
             console.error('خطأ في معالجة slash command:', error.message || error);
@@ -833,6 +775,64 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         content: `تم إنشاء تذكرة حل مشكلة في ${problemChannel}`, 
                         flags: [64] 
                     });
+                    break;
+
+                case 'claim_ticket':
+                    // التحقق من أن المستخدم مشرف تذاكر
+                    const claimGuildId = interaction.guild.id;
+                    const claimAdminRoles = ticketBot.adminRoles.get(claimGuildId) || [];
+                    const claimUserRoles = interaction.member.roles.cache.map(role => role.id);
+                    const claimIsAdmin = claimAdminRoles.some(roleId => claimUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
+                    
+                    if (!claimIsAdmin) {
+                        await interaction.reply({ content: 'لا يمكنك استلام التذاكر. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
+                        break;
+                    }
+                    
+                    const claimEmbed = new EmbedBuilder()
+                        .setTitle('👤 تم استلام التذكرة')
+                        .setDescription(`تم استلام هذه التذكرة من قبل ${interaction.user}\nسيتم التعامل معها في أقرب وقت.`)
+                        .setColor(0x3498db)
+                        .setTimestamp();
+                    
+                    await interaction.reply({ embeds: [claimEmbed] });
+                    break;
+                    
+                case 'close_ticket':
+                    // التحقق من أن المستخدم مشرف تذاكر
+                    const closeGuildId = interaction.guild.id;
+                    const closeAdminRoles = ticketBot.adminRoles.get(closeGuildId) || [];
+                    const closeUserRoles = interaction.member.roles.cache.map(role => role.id);
+                    const closeIsAdmin = closeAdminRoles.some(roleId => closeUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
+                    
+                    if (!closeIsAdmin) {
+                        await interaction.reply({ content: 'لا يمكنك قفل التذكرة. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
+                        break;
+                    }
+                    
+                    const closeEmbed = new EmbedBuilder()
+                        .setTitle('🔒 جاري قفل التذكرة')
+                        .setDescription('سيتم قفل هذه التذكرة في غضون 10 ثوان...')
+                        .setColor(0xe74c3c)
+                        .setTimestamp();
+                    
+                    await interaction.reply({ embeds: [closeEmbed] });
+                    
+                    // إرسال السجل قبل الحذف
+                    try {
+                        await sendTicketLog(interaction.channel, interaction.user, 'قفل التذكرة');
+                    } catch (logError) {
+                        console.error('خطأ في إرسال سجل التذكرة:', logError);
+                    }
+                    
+                    // حذف القناة بعد 10 ثوان
+                    setTimeout(async () => {
+                        try {
+                            await interaction.channel.delete();
+                        } catch (error) {
+                            console.error('خطأ في حذف قناة التذكرة:', error);
+                        }
+                    }, 10000);
                     break;
             }
         } catch (error) {
