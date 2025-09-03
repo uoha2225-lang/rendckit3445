@@ -18,6 +18,7 @@ const createBotClient = (intents = []) => {
 const ticketBot = createBotClient();
 ticketBot.commands = new Collection();
 ticketBot.activeTickets = new Collection();
+ticketBot.adminRoles = new Collection(); // لحفظ رتب مشرفين التذاكر
 
 // بوت التقييمات
 const reviewBot = createBotClient();
@@ -158,7 +159,43 @@ const ticketCommands = [
         .setDescription('عرض قائمة الأوامر المتاحة')
         .setDescriptionLocalizations({
             'en-US': 'Show available commands list'
-        })
+        }),
+    new SlashCommandBuilder()
+        .setName('مشرفين_التذاكر')
+        .setDescription('إضافة أو إزالة رتب مشرفين التذاكر')
+        .addStringOption(option =>
+            option.setName('action')
+                .setDescription('إضافة أو إزالة رتبة')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'إضافة', value: 'add' },
+                    { name: 'إزالة', value: 'remove' },
+                    { name: 'عرض القائمة', value: 'list' }
+                )
+        )
+        .addRoleOption(option =>
+            option.setName('role')
+                .setDescription('الرتبة المراد إضافتها أو إزالتها')
+                .setRequired(false)
+        ),
+    new SlashCommandBuilder()
+        .setName('ticket_admins')
+        .setDescription('Add or remove ticket admin roles')
+        .addStringOption(option =>
+            option.setName('action')
+                .setDescription('Add or remove role')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Add', value: 'add' },
+                    { name: 'Remove', value: 'remove' },
+                    { name: 'List', value: 'list' }
+                )
+        )
+        .addRoleOption(option =>
+            option.setName('role')
+                .setDescription('Role to add or remove')
+                .setRequired(false)
+        )
 ];
 
 // إعداد slash commands للتقييمات
@@ -307,11 +344,85 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             `**الأوامر المتاحة:**\n\n` +
                             `\`/تذكرة\` - فتح نظام التذاكر\n` +
                             `\`/ticket\` - Open ticket system (English)\n` +
+                            `\`/مشرفين_التذاكر\` - إدارة رتب مشرفين التذاكر\n` +
+                            `\`/ticket_admins\` - Manage ticket admin roles (English)\n` +
                             `\`/help\` - عرض هذه القائمة`
                         )
                         .setColor(0x3498db);
                     
                     await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
+                    break;
+                    
+                case 'مشرفين_التذاكر':
+                case 'ticket_admins':
+                    const action = interaction.options.getString('action');
+                    const role = interaction.options.getRole('role');
+                    const guildId = interaction.guild.id;
+                    
+                    // الحصول على قائمة الرتب المحفوظة للسيرفر
+                    let adminRoles = ticketBot.adminRoles.get(guildId) || [];
+                    
+                    if (action === 'add') {
+                        if (!role) {
+                            await interaction.reply({ content: 'يجب تحديد الرتبة المراد إضافتها', flags: [64] });
+                            return;
+                        }
+                        
+                        if (adminRoles.includes(role.id)) {
+                            await interaction.reply({ content: `الرتبة ${role.name} موجودة بالفعل في قائمة مشرفين التذاكر`, flags: [64] });
+                            return;
+                        }
+                        
+                        adminRoles.push(role.id);
+                        ticketBot.adminRoles.set(guildId, adminRoles);
+                        
+                        const addEmbed = new EmbedBuilder()
+                            .setTitle('✅ تم إضافة رتبة مشرف تذاكر')
+                            .setDescription(`تم إضافة الرتبة ${role} إلى قائمة مشرفين التذاكر`)
+                            .setColor(0x00AE86);
+                        
+                        await interaction.reply({ embeds: [addEmbed], flags: [64] });
+                        
+                    } else if (action === 'remove') {
+                        if (!role) {
+                            await interaction.reply({ content: 'يجب تحديد الرتبة المراد إزالتها', flags: [64] });
+                            return;
+                        }
+                        
+                        const roleIndex = adminRoles.indexOf(role.id);
+                        if (roleIndex === -1) {
+                            await interaction.reply({ content: `الرتبة ${role.name} غير موجودة في قائمة مشرفين التذاكر`, flags: [64] });
+                            return;
+                        }
+                        
+                        adminRoles.splice(roleIndex, 1);
+                        ticketBot.adminRoles.set(guildId, adminRoles);
+                        
+                        const removeEmbed = new EmbedBuilder()
+                            .setTitle('❌ تم إزالة رتبة مشرف تذاكر')
+                            .setDescription(`تم إزالة الرتبة ${role} من قائمة مشرفين التذاكر`)
+                            .setColor(0xe74c3c);
+                        
+                        await interaction.reply({ embeds: [removeEmbed], flags: [64] });
+                        
+                    } else if (action === 'list') {
+                        if (adminRoles.length === 0) {
+                            await interaction.reply({ content: 'لا توجد رتب مشرفين تذاكر محددة حالياً', flags: [64] });
+                            return;
+                        }
+                        
+                        const rolesList = adminRoles.map(roleId => {
+                            const roleObj = interaction.guild.roles.cache.get(roleId);
+                            return roleObj ? roleObj.toString() : `رتبة محذوفة (${roleId})`;
+                        }).join('\n');
+                        
+                        const listEmbed = new EmbedBuilder()
+                            .setTitle('👥 قائمة مشرفين التذاكر')
+                            .setDescription(rolesList)
+                            .setColor(0x3498db);
+                        
+                        await interaction.reply({ embeds: [listEmbed], flags: [64] });
+                    }
                     break;
             }
         } catch (error) {
@@ -335,20 +446,31 @@ ticketBot.on('interactionCreate', async (interaction) => {
 
                 case 'ticket_buy':
                     // إنشاء روم تذكرة جديد
+                    const guildAdminRoles = ticketBot.adminRoles.get(interaction.guild.id) || [];
+                    const permissionOverwrites = [
+                        {
+                            id: interaction.guild.id,
+                            deny: ['ViewChannel'],
+                        },
+                        {
+                            id: interaction.user.id,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
+                        },
+                    ];
+                    
+                    // إضافة رتب المشرفين
+                    guildAdminRoles.forEach(roleId => {
+                        permissionOverwrites.push({
+                            id: roleId,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'],
+                        });
+                    });
+                    
                     const buyChannel = await interaction.guild.channels.create({
                         name: `شراء-منتج-${interaction.user.username}`,
                         type: 0, // text channel
                         parent: null, // يمكن تحديد category إذا أردت
-                        permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: ['ViewChannel'],
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-                            },
-                        ],
+                        permissionOverwrites: permissionOverwrites,
                     });
                     
                     const buyEmbed = createTicketEmbed(
@@ -368,20 +490,31 @@ ticketBot.on('interactionCreate', async (interaction) => {
 
                 case 'ticket_inquiry':
                     // إنشاء روم تذكرة جديد
+                    const inquiryGuildAdminRoles = ticketBot.adminRoles.get(interaction.guild.id) || [];
+                    const inquiryPermissionOverwrites = [
+                        {
+                            id: interaction.guild.id,
+                            deny: ['ViewChannel'],
+                        },
+                        {
+                            id: interaction.user.id,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
+                        },
+                    ];
+                    
+                    // إضافة رتب المشرفين
+                    inquiryGuildAdminRoles.forEach(roleId => {
+                        inquiryPermissionOverwrites.push({
+                            id: roleId,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'],
+                        });
+                    });
+                    
                     const inquiryChannel = await interaction.guild.channels.create({
                         name: `استفسار-${interaction.user.username}`,
                         type: 0, // text channel
                         parent: null, // يمكن تحديد category إذا أردت
-                        permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: ['ViewChannel'],
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-                            },
-                        ],
+                        permissionOverwrites: inquiryPermissionOverwrites,
                     });
                     
                     const inquiryEmbed = createTicketEmbed(
@@ -401,20 +534,31 @@ ticketBot.on('interactionCreate', async (interaction) => {
 
                 case 'ticket_problem':
                     // إنشاء روم تذكرة جديد
+                    const problemGuildAdminRoles = ticketBot.adminRoles.get(interaction.guild.id) || [];
+                    const problemPermissionOverwrites = [
+                        {
+                            id: interaction.guild.id,
+                            deny: ['ViewChannel'],
+                        },
+                        {
+                            id: interaction.user.id,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
+                        },
+                    ];
+                    
+                    // إضافة رتب المشرفين
+                    problemGuildAdminRoles.forEach(roleId => {
+                        problemPermissionOverwrites.push({
+                            id: roleId,
+                            allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'],
+                        });
+                    });
+                    
                     const problemChannel = await interaction.guild.channels.create({
                         name: `حل-مشكلة-${interaction.user.username}`,
                         type: 0, // text channel
                         parent: null, // يمكن تحديد category إذا أردت
-                        permissionOverwrites: [
-                            {
-                                id: interaction.guild.id,
-                                deny: ['ViewChannel'],
-                            },
-                            {
-                                id: interaction.user.id,
-                                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-                            },
-                        ],
+                        permissionOverwrites: problemPermissionOverwrites,
                     });
                     
                     const problemEmbed = createTicketEmbed(
