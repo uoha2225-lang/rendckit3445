@@ -31,14 +31,20 @@ const formatDuration = (milliseconds) => {
     }
 };
 
-// دالة لإنشاء قائمة اختيار الرومات
-const createChannelSelectMenu = (channels, guildId) => {
+// دالة لإنشاء قائمة اختيار الرومات مع صفحات
+const createChannelSelectMenu = (channels, guildId, page = 0) => {
     const selectedChannels = activityBot.selectedChannels.get(guildId) || [];
+    const channelsArray = Array.from(channels.values());
+    const pageSize = 25;
+    const startIndex = page * pageSize;
+    const endIndex = startIndex + pageSize;
+    const pageChannels = channelsArray.slice(startIndex, endIndex);
     
-    // أخذ أول 25 روم فقط (حد Discord الأقصى)
-    const limitedChannels = Array.from(channels.values()).slice(0, 25);
+    if (pageChannels.length === 0) {
+        return null;
+    }
     
-    const options = limitedChannels.map(channel => ({
+    const options = pageChannels.map(channel => ({
         label: channel.name.length > 100 ? channel.name.substring(0, 97) + '...' : channel.name,
         value: channel.id,
         description: `${channel.members?.size || 0} عضو متصل`,
@@ -48,8 +54,8 @@ const createChannelSelectMenu = (channels, guildId) => {
     return new ActionRowBuilder()
         .addComponents(
             new StringSelectMenuBuilder()
-                .setCustomId('select_voice_channels')
-                .setPlaceholder('اختر الرومات الصوتية للمراقبة (أول 25 روم)')
+                .setCustomId(`select_voice_channels_${page}`)
+                .setPlaceholder(`اختر الرومات (صفحة ${page + 1}/${Math.ceil(channelsArray.length / pageSize)})`)
                 .setMinValues(0)
                 .setMaxValues(Math.min(options.length, 25))
                 .addOptions(options)
@@ -78,6 +84,63 @@ const createControlButtons = (guildId) => {
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('🗑️')
         );
+};
+
+// دالة لإنشاء أزرار التحكم المتقدم
+const createAdvancedControlButtons = (guildId, channelsCount, currentPage = 0) => {
+    const selectedChannels = activityBot.selectedChannels.get(guildId) || [];
+    const totalPages = Math.ceil(channelsCount / 25);
+    
+    const row1 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('select_all_channels')
+                .setLabel(`مراقبة جميع الرومات (${channelsCount})`)
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🎤'),
+            new ButtonBuilder()
+                .setCustomId('deselect_all_channels')
+                .setLabel('إلغاء تحديد الكل')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('❌')
+        );
+    
+    const row2 = new ActionRowBuilder();
+    
+    // أزرار التنقل بين الصفحات
+    if (totalPages > 1) {
+        if (currentPage > 0) {
+            row2.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`page_prev_${currentPage - 1}`)
+                    .setLabel('الصفحة السابقة')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('◀️')
+            );
+        }
+        
+        if (currentPage < totalPages - 1) {
+            row2.addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`page_next_${currentPage + 1}`)
+                    .setLabel('الصفحة التالية')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('▶️')
+            );
+        }
+    }
+    
+    // عرض عدد الرومات المختارة
+    row2.addComponents(
+        new ButtonBuilder()
+            .setCustomId('show_selected_count')
+            .setLabel(`المختار: ${selectedChannels.length}`)
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✅')
+            .setDisabled(true)
+    );
+    
+    return row2.components.length > 0 ? [row1, row2] : [row1];
 };
 
 // أوامر البوت
@@ -216,26 +279,46 @@ activityBot.on('interactionCreate', async (interaction) => {
                     return;
                 }
                 
+                const selectedChannels = activityBot.selectedChannels.get(guild.id) || [];
+                
                 const embed = new EmbedBuilder()
-                    .setTitle('🎤 لوحة مراقبة نشاط الرومات الصوتية')
+                    .setTitle('🎤 لوحة مراقبة نشاط الرومات الصوتية المحدثة')
                     .setDescription(
-                        'استخدم القائمة المنسدلة لاختيار الرومات التي تريد مراقبتها\n' +
-                        'يمكنك اختيار أكثر من روم واحد (حتى 25 روم)\n\n' +
+                        `**إجمالي الرومات الصوتية:** ${voiceChannels.size}\n` +
+                        `**المختار حالياً:** ${selectedChannels.length}\n\n` +
+                        '**الخيارات المتاحة:**\n' +
+                        '🎤 **مراقبة جميع الرومات** - لمراقبة جميع الرومات تلقائياً\n' +
+                        '📝 **اختيار محدد** - اختيار رومات معينة (مع التنقل بين الصفحات)\n' +
+                        '❌ **إلغاء تحديد الكل** - لمسح الاختيارات\n\n' +
                         '**الميزات:**\n' +
                         '• مراقبة وقت دخول وخروج الأعضاء\n' +
                         '• حساب إجمالي الوقت المقضي\n' +
                         '• تقارير مفصلة عن النشاط\n' +
-                        '• عرض أكثر الأعضاء نشاطاً'
+                        '• عرض أكثر الأعضاء نشاطاً\n' +
+                        '• دعم أكثر من 200+ روم صوتي'
                     )
                     .setColor(0x00AE86)
                     .setTimestamp();
                 
-                const selectMenu = createChannelSelectMenu(voiceChannels, guild.id);
+                const components = [];
+                
+                // إضافة قائمة الاختيار للصفحة الأولى
+                const selectMenu = createChannelSelectMenu(voiceChannels, guild.id, 0);
+                if (selectMenu) {
+                    components.push(selectMenu);
+                }
+                
+                // إضافة أزرار التحكم المتقدم
+                const advancedButtons = createAdvancedControlButtons(guild.id, voiceChannels.size, 0);
+                components.push(...advancedButtons);
+                
+                // إضافة أزرار التحكم الأساسية
                 const controlButtons = createControlButtons(guild.id);
+                components.push(controlButtons);
                 
                 await interaction.reply({
                     embeds: [embed],
-                    components: [selectMenu, controlButtons]
+                    components: components
                 });
             }
             
@@ -314,13 +397,28 @@ activityBot.on('interactionCreate', async (interaction) => {
         }
     }
     
-    if (interaction.isStringSelectMenu() && interaction.customId === 'select_voice_channels') {
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_voice_channels')) {
         const guildId = interaction.guild.id;
         const selectedChannelIds = interaction.values;
+        const currentPage = parseInt(interaction.customId.split('_').pop()) || 0;
         
-        activityBot.selectedChannels.set(guildId, selectedChannelIds);
+        // دمج الاختيارات الجديدة مع الاختيارات السابقة
+        let existingSelections = activityBot.selectedChannels.get(guildId) || [];
         
-        const channelNames = selectedChannelIds.map(id => {
+        // إزالة الاختيارات من هذه الصفحة أولاً
+        const voiceChannels = interaction.guild.channels.cache
+            .filter(channel => channel.type === ChannelType.GuildVoice);
+        const channelsArray = Array.from(voiceChannels.values());
+        const pageChannels = channelsArray.slice(currentPage * 25, (currentPage + 1) * 25);
+        const pageChannelIds = pageChannels.map(c => c.id);
+        
+        existingSelections = existingSelections.filter(id => !pageChannelIds.includes(id));
+        
+        // إضافة الاختيارات الجديدة
+        const updatedSelections = [...existingSelections, ...selectedChannelIds];
+        activityBot.selectedChannels.set(guildId, updatedSelections);
+        
+        const channelNames = updatedSelections.map(id => {
             const channel = interaction.guild.channels.cache.get(id);
             return channel ? channel.name : 'روم غير معروف';
         });
@@ -328,18 +426,32 @@ activityBot.on('interactionCreate', async (interaction) => {
         const embed = new EmbedBuilder()
             .setTitle('✅ تم تحديث اختيار الرومات')
             .setDescription(
-                selectedChannelIds.length > 0 
-                    ? `**الرومات المختارة (${selectedChannelIds.length}):**\n${channelNames.map(name => `• ${name}`).join('\n')}`
+                updatedSelections.length > 0 
+                    ? `**إجمالي الرومات المختارة: ${updatedSelections.length}**\n\n${channelNames.slice(0, 20).map(name => `• ${name}`).join('\n')}${updatedSelections.length > 20 ? `\n... و ${updatedSelections.length - 20} روم آخر` : ''}`
                     : 'لم يتم اختيار أي رومات'
             )
             .setColor(0x00AE86)
             .setTimestamp();
         
+        const components = [];
+        
+        // إضافة قائمة الاختيار للصفحة الحالية
+        const selectMenu = createChannelSelectMenu(voiceChannels, guildId, currentPage);
+        if (selectMenu) {
+            components.push(selectMenu);
+        }
+        
+        // إضافة أزرار التحكم المتقدم
+        const advancedButtons = createAdvancedControlButtons(guildId, voiceChannels.size, currentPage);
+        components.push(...advancedButtons);
+        
+        // إضافة أزرار التحكم الأساسية
         const controlButtons = createControlButtons(guildId);
+        components.push(controlButtons);
         
         await interaction.update({
             embeds: [embed],
-            components: [controlButtons]
+            components: components
         });
     }
     
@@ -454,6 +566,102 @@ activityBot.on('interactionCreate', async (interaction) => {
                         .setTimestamp();
                     
                     await interaction.reply({ embeds: [clearEmbed], flags: [64] });
+                    break;
+                    
+                case 'select_all_channels':
+                    const guildIdForAll = interaction.guild.id;
+                    const allVoiceChannels = interaction.guild.channels.cache
+                        .filter(channel => channel.type === ChannelType.GuildVoice);
+                    const allChannelIds = Array.from(allVoiceChannels.keys());
+                    
+                    activityBot.selectedChannels.set(guildIdForAll, allChannelIds);
+                    
+                    const allSelectedEmbed = new EmbedBuilder()
+                        .setTitle('✅ تم اختيار جميع الرومات الصوتية')
+                        .setDescription(`تم اختيار جميع الرومات الصوتية (${allChannelIds.length} روم) للمراقبة.\n\nيمكنك الآن بدء المراقبة لتتبع نشاط جميع الأعضاء في كل الرومات الصوتية.`)
+                        .setColor(0x00AE86)
+                        .setTimestamp();
+                    
+                    const allControlButtons = createControlButtons(guildIdForAll);
+                    
+                    await interaction.update({
+                        embeds: [allSelectedEmbed],
+                        components: [allControlButtons]
+                    });
+                    break;
+                    
+                case 'deselect_all_channels':
+                    const guildIdForNone = interaction.guild.id;
+                    activityBot.selectedChannels.set(guildIdForNone, []);
+                    
+                    const noSelectionEmbed = new EmbedBuilder()
+                        .setTitle('❌ تم إلغاء تحديد جميع الرومات')
+                        .setDescription('تم إلغاء تحديد جميع الرومات الصوتية.\nيمكنك اختيار رومات محددة أو اختيار جميع الرومات مرة أخرى.')
+                        .setColor(0xe74c3c)
+                        .setTimestamp();
+                    
+                    // إعادة عرض قائمة الاختيار
+                    const voiceChannelsForDeselect = interaction.guild.channels.cache
+                        .filter(channel => channel.type === ChannelType.GuildVoice)
+                        .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+                    
+                    const componentsForDeselect = [];
+                    
+                    const selectMenuForDeselect = createChannelSelectMenu(voiceChannelsForDeselect, guildIdForNone, 0);
+                    if (selectMenuForDeselect) {
+                        componentsForDeselect.push(selectMenuForDeselect);
+                    }
+                    
+                    const advancedButtonsForDeselect = createAdvancedControlButtons(guildIdForNone, voiceChannelsForDeselect.size, 0);
+                    componentsForDeselect.push(...advancedButtonsForDeselect);
+                    
+                    const controlButtonsForDeselect = createControlButtons(guildIdForNone);
+                    componentsForDeselect.push(controlButtonsForDeselect);
+                    
+                    await interaction.update({
+                        embeds: [noSelectionEmbed],
+                        components: componentsForDeselect
+                    });
+                    break;
+                    
+                default:
+                    // التعامل مع أزرار التنقل بين الصفحات
+                    if (interaction.customId.startsWith('page_')) {
+                        const parts = interaction.customId.split('_');
+                        const direction = parts[1]; // 'prev' أو 'next'
+                        const targetPage = parseInt(parts[2]);
+                        
+                        const guildIdForPage = interaction.guild.id;
+                        const voiceChannelsForPage = interaction.guild.channels.cache
+                            .filter(channel => channel.type === ChannelType.GuildVoice)
+                            .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+                        
+                        const selectedChannelsForPage = activityBot.selectedChannels.get(guildIdForPage) || [];
+                        
+                        const pageEmbed = new EmbedBuilder()
+                            .setTitle(`🎤 صفحة ${targetPage + 1} - اختيار الرومات الصوتية`)
+                            .setDescription(`**إجمالي الرومات:** ${voiceChannelsForPage.size}\n**المختار حالياً:** ${selectedChannelsForPage.length}`)
+                            .setColor(0x00AE86)
+                            .setTimestamp();
+                        
+                        const componentsForPage = [];
+                        
+                        const selectMenuForPage = createChannelSelectMenu(voiceChannelsForPage, guildIdForPage, targetPage);
+                        if (selectMenuForPage) {
+                            componentsForPage.push(selectMenuForPage);
+                        }
+                        
+                        const advancedButtonsForPage = createAdvancedControlButtons(guildIdForPage, voiceChannelsForPage.size, targetPage);
+                        componentsForPage.push(...advancedButtonsForPage);
+                        
+                        const controlButtonsForPage = createControlButtons(guildIdForPage);
+                        componentsForPage.push(controlButtonsForPage);
+                        
+                        await interaction.update({
+                            embeds: [pageEmbed],
+                            components: componentsForPage
+                        });
+                    }
                     break;
             }
         } catch (error) {
