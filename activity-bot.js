@@ -35,8 +35,11 @@ const formatDuration = (milliseconds) => {
 const createChannelSelectMenu = (channels, guildId) => {
     const selectedChannels = activityBot.selectedChannels.get(guildId) || [];
     
-    const options = channels.map(channel => ({
-        label: channel.name,
+    // أخذ أول 25 روم فقط (حد Discord الأقصى)
+    const limitedChannels = Array.from(channels.values()).slice(0, 25);
+    
+    const options = limitedChannels.map(channel => ({
+        label: channel.name.length > 100 ? channel.name.substring(0, 97) + '...' : channel.name,
         value: channel.id,
         description: `${channel.members?.size || 0} عضو متصل`,
         default: selectedChannels.includes(channel.id)
@@ -46,7 +49,7 @@ const createChannelSelectMenu = (channels, guildId) => {
         .addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('select_voice_channels')
-                .setPlaceholder('اختر الرومات الصوتية للمراقبة (يمكن اختيار أكثر من روم)')
+                .setPlaceholder('اختر الرومات الصوتية للمراقبة (أول 25 روم)')
                 .setMinValues(0)
                 .setMaxValues(Math.min(options.length, 25))
                 .addOptions(options)

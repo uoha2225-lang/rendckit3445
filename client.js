@@ -84,7 +84,7 @@ const createTicketMainEmbed = () => {
     return new EmbedBuilder()
         .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('attachment://qren-store-logo.png')
+        .setImage('attachment://DISCORD_1757011496282.gif')
         .setColor(0x000000)
         .setTimestamp();
 };
@@ -105,7 +105,7 @@ const createTicketEmbed = (ticketType, description, user) => {
             { name: 'التاريخ:', value: new Date().toLocaleString('ar-SA'), inline: true }
         )
         .setColor(0x00AE86)
-        .setImage('https://i.imgur.com/qren-store-logo.png')
+        .setImage('attachment://DISCORD_1757011496282.gif')
         .setTimestamp()
         .setFooter({ text: 'نظام التذاكر' });
     
@@ -438,7 +438,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     try {
                         // إرسال الصورة مع الembed
                         const { AttachmentBuilder } = require('discord.js');
-                        const attachment = new AttachmentBuilder('images/qren-store-logo.png', { name: 'qren-store-logo.png' });
+                        const attachment = new AttachmentBuilder('attached_assets/DISCORD_1757011496282.gif', { name: 'DISCORD_1757011496282.gif' });
                         
                         await interaction.reply({ 
                             embeds: [mainEmbed], 
