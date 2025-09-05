@@ -27,8 +27,7 @@ const reviewBot = createBotClient();
 reviewBot.reviewStats = new Collection();
 reviewBot.reviewChannels = new Collection(); // لحفظ الرومز المخصصة للتقييم
 
-// بوت مراقبة النشاط
-const { activityBot } = require('./activity-bot');
+// بوت مراقبة النشاط - يتم استيراده في index.js منفصلاً
 
 // دالة إرسال سجلات التذاكر
 const sendTicketLog = async (ticketChannel, closedBy, action) => {
@@ -1185,7 +1184,6 @@ reviewBot.on('messageCreate', async (message) => {
 module.exports = {
     ticketBot,
     reviewBot,
-    activityBot,
     createTicketMainEmbed,
     createTicketOptionsEmbed,
     createTicketEmbed,

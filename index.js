@@ -1,4 +1,5 @@
-const { ticketBot, reviewBot, activityBot } = require('./client');
+const { ticketBot, reviewBot } = require('./client');
+const { activityBot } = require('./activity-bot');
 const tokens = require('./tokens');
 const http = require('http');
 
