@@ -405,7 +405,7 @@ async function registerReviewCommands() {
 }
 
 // بوت التذاكر
-ticketBot.once('ready', async () => {
+ticketBot.once('clientReady', async () => {
     console.log(`بوت التذاكر جاهز! مسجل باسم ${ticketBot.user.tag}`);
     await registerTicketCommands();
 });
@@ -478,7 +478,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             try {
                                 await interaction.reply({ 
                                     content: 'حدث خطأ في عرض نظام التذاكر. حاول مرة أخرى.', 
-                                    flags: [64] 
+                                    ephemeral: true 
                                 });
                             } catch (fallbackError) {
                                 console.error('❌ فشل في الرد الاحتياطي:', fallbackError.message);
@@ -503,7 +503,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         .setColor(0x3498db);
                     
                     try {
-                        await interaction.reply({ embeds: [helpEmbed], flags: [64] });
+                        await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
                     } catch (replyError) {
                         console.error('خطأ في الرد على أمر المساعدة:', replyError.message);
                     }
@@ -520,13 +520,13 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     if (action === 'add') {
                         if (!role) {
-                            await interaction.reply({ content: 'يجب تحديد الرتبة المراد إضافتها', flags: [64] });
+                            await interaction.reply({ content: 'يجب تحديد الرتبة المراد إضافتها', ephemeral: true });
                             break;
                         }
                         
                         if (adminRoles.includes(role.id)) {
                             try {
-                                await interaction.reply({ content: `الرتبة ${role.name} موجودة بالفعل في قائمة مشرفين التذاكر`, flags: [64] });
+                                await interaction.reply({ content: `الرتبة ${role.name} موجودة بالفعل في قائمة مشرفين التذاكر`, ephemeral: true });
                             } catch (e) { console.log('خطأ في الرد'); }
                             break;
                         }
@@ -540,18 +540,18 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             .setColor(0x00AE86);
                         
                         try {
-                            await interaction.reply({ embeds: [addEmbed], flags: [64] });
+                            await interaction.reply({ embeds: [addEmbed], ephemeral: true });
                         } catch (e) { console.log('خطأ في الرد'); }
                         
                     } else if (action === 'remove') {
                         if (!role) {
-                            await interaction.reply({ content: 'يجب تحديد الرتبة المراد إزالتها', flags: [64] });
+                            await interaction.reply({ content: 'يجب تحديد الرتبة المراد إزالتها', ephemeral: true });
                             break;
                         }
                         
                         const roleIndex = adminRoles.indexOf(role.id);
                         if (roleIndex === -1) {
-                            await interaction.reply({ content: `الرتبة ${role.name} غير موجودة في قائمة مشرفين التذاكر`, flags: [64] });
+                            await interaction.reply({ content: `الرتبة ${role.name} غير موجودة في قائمة مشرفين التذاكر`, ephemeral: true });
                             break;
                         }
                         
@@ -564,12 +564,12 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             .setColor(0xe74c3c);
                         
                         try {
-                            await interaction.reply({ embeds: [removeEmbed], flags: [64] });
+                            await interaction.reply({ embeds: [removeEmbed], ephemeral: true });
                         } catch (e) { console.log('خطأ في الرد'); }
                         
                     } else if (action === 'list') {
                         if (adminRoles.length === 0) {
-                            await interaction.reply({ content: 'لا توجد رتب مشرفين تذاكر محددة حالياً', flags: [64] });
+                            await interaction.reply({ content: 'لا توجد رتب مشرفين تذاكر محددة حالياً', ephemeral: true });
                             break;
                         }
                         
@@ -584,7 +584,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             .setColor(0x3498db);
                         
                         try {
-                            await interaction.reply({ embeds: [listEmbed], flags: [64] });
+                            await interaction.reply({ embeds: [listEmbed], ephemeral: true });
                         } catch (e) { console.log('خطأ في الرد'); }
                     }
                     break;
@@ -603,7 +603,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         .setColor(0x00AE86);
                     
                     try {
-                        await interaction.reply({ embeds: [logEmbed], flags: [64] });
+                        await interaction.reply({ embeds: [logEmbed], ephemeral: true });
                     } catch (e) { console.log('خطأ في الرد'); }
                     break;
             }
@@ -620,7 +620,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                 try {
                     await interaction.reply({ 
                         content: 'حدث خطأ أثناء تنفيذ الأمر. حاول مرة أخرى.', 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                 } catch (replyError) {
                     console.error('❌ فشل في الرد على الخطأ:', replyError.message);
@@ -644,7 +644,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({ 
                                 content: 'حدث خطأ في عرض قائمة التذاكر. حاول مرة أخرى.', 
-                                flags: [64] 
+                                ephemeral: true 
                             }).catch(() => {});
                         }
                     }
@@ -664,7 +664,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             const seniorComplaintTimeLeft = (seniorComplaintExpirationTime - seniorComplaintNow) / 1000;
                             await interaction.reply({ 
                                 content: `يجب الانتظار ${seniorComplaintTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
-                                flags: [64] 
+                                ephemeral: true 
                             });
                             break;
                         }
@@ -731,7 +731,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة شكوى على ادارة عليا في ${seniorComplaintChannel}`, 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                     break;
 
@@ -749,7 +749,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             const compensationTimeLeft = (compensationExpirationTime - compensationNow) / 1000;
                             await interaction.reply({ 
                                 content: `يجب الانتظار ${compensationTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
-                                flags: [64] 
+                                ephemeral: true 
                             });
                             break;
                         }
@@ -816,7 +816,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة تعويض في ${compensationChannel}`, 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                     break;
 
@@ -834,7 +834,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             const transferTimeLeft = (transferExpirationTime - transferNow) / 1000;
                             await interaction.reply({ 
                                 content: `يجب الانتظار ${transferTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
-                                flags: [64] 
+                                ephemeral: true 
                             });
                             break;
                         }
@@ -901,7 +901,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة نقل في ${transferChannel}`, 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                     break;
 
@@ -919,7 +919,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             const adminComplaintTimeLeft = (adminComplaintExpirationTime - adminComplaintNow) / 1000;
                             await interaction.reply({ 
                                 content: `يجب الانتظار ${adminComplaintTimeLeft.toFixed(1)} ثانية قبل إنشاء تذكرة جديدة.`, 
-                                flags: [64] 
+                                ephemeral: true 
                             });
                             break;
                         }
@@ -986,7 +986,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     
                     await interaction.reply({ 
                         content: `تم إنشاء تذكرة شكوى على إداري في ${adminComplaintChannel}`, 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                     break;
 
@@ -998,7 +998,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     const claimIsAdmin = claimAdminRoles.some(roleId => claimUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
                     
                     if (!claimIsAdmin) {
-                        await interaction.reply({ content: 'لا يمكنك استلام التذاكر. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
+                        await interaction.reply({ content: 'لا يمكنك استلام التذاكر. هذه الميزة مخصصة للمشرفين فقط.', ephemeral: true });
                         break;
                     }
                     
@@ -1019,7 +1019,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     const closeIsAdmin = closeAdminRoles.some(roleId => closeUserRoles.includes(roleId)) || interaction.member.permissions.has('ManageChannels');
                     
                     if (!closeIsAdmin) {
-                        await interaction.reply({ content: 'لا يمكنك قفل التذكرة. هذه الميزة مخصصة للمشرفين فقط.', flags: [64] });
+                        await interaction.reply({ content: 'لا يمكنك قفل التذكرة. هذه الميزة مخصصة للمشرفين فقط.', ephemeral: true });
                         break;
                     }
                     
@@ -1062,7 +1062,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                 try {
                     await interaction.reply({ 
                         content: 'حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى.', 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                 } catch (replyError) {
                     console.error('❌ فشل في الرد على خطأ الزر:', replyError.message);
@@ -1073,7 +1073,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
 });
 
 // بوت التقييمات
-reviewBot.once('ready', async () => {
+reviewBot.once('clientReady', async () => {
     console.log(`بوت التقييمات جاهز! مسجل باسم ${reviewBot.user.tag}`);
     await registerReviewCommands();
 });

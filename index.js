@@ -2,23 +2,60 @@ const { ticketBot, reviewBot, activityBot } = require('./client');
 const tokens = require('./tokens');
 const http = require('http');
 
-// إنشاء HTTP server بسيط لـ Render
+// إنشاء HTTP server لـ Render health checks
 const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-        status: 'البوتات تعمل بنجاح',
-        bots: {
-            ticket_bot: ticketBot.user ? ticketBot.user.tag : 'غير متصل',
-            review_bot: reviewBot.user ? reviewBot.user.tag : 'غير متصل',
-            activity_bot: activityBot.user ? activityBot.user.tag : 'غير متصل'
-        },
-        uptime: process.uptime()
-    }));
+    // إعداد CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+    
+    // health check endpoint
+    if (req.url === '/health' || req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'healthy',
+            message: 'البوتات تعمل بنجاح',
+            bots: {
+                ticket_bot: ticketBot.user ? ticketBot.user.tag : 'غير متصل',
+                review_bot: reviewBot.user ? reviewBot.user.tag : 'غير متصل',
+                activity_bot: activityBot.user ? activityBot.user.tag : 'غير متصل'
+            },
+            uptime: Math.floor(process.uptime()),
+            timestamp: new Date().toISOString()
+        }));
+    } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not Found' }));
+    }
 });
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 HTTP Server يعمل على البورت ${PORT}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+});
+
+// حل graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('💴 تم استلام إشارة SIGTERM, بدء إغلاق الخادم...');
+    server.close(() => {
+        console.log('🔴 تم إغلاق HTTP Server');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('💴 تم استلام إشارة SIGINT, بدء إغلاق الخادم...');
+    server.close(() => {
+        console.log('🔴 تم إغلاق HTTP Server');
+        process.exit(0);
+    });
 });
 
 // دالة لبدء تشغيل البوتات

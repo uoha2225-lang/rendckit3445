@@ -180,7 +180,7 @@ async function registerActivityCommands() {
 }
 
 // حدث جاهزية البوت
-activityBot.once('ready', async () => {
+activityBot.once('clientReady', async () => {
     console.log(`بوت مراقبة النشاط جاهز! مسجل باسم ${activityBot.user.tag}`);
     await registerActivityCommands();
 });
@@ -274,7 +274,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                 if (voiceChannels.size === 0) {
                     await interaction.reply({ 
                         content: 'لا توجد رومات صوتية في هذا السيرفر!', 
-                        flags: [64] 
+                        ephemeral: true 
                     });
                     return;
                 }
@@ -329,7 +329,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                 if (selectedChannels.length === 0) {
                     await interaction.reply({
                         content: 'لم يتم اختيار أي رومات للمراقبة! استخدم `/مراقبة_النشاط` أولاً.',
-                        flags: [64]
+                        ephemeral: true
                     });
                     return;
                 }
@@ -346,7 +346,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                 if (activityData.length === 0) {
                     await interaction.reply({
                         content: 'لا توجد بيانات نشاط حتى الآن!',
-                        flags: [64]
+                        ephemeral: true
                     });
                     return;
                 }
@@ -391,7 +391,7 @@ activityBot.on('interactionCreate', async (interaction) => {
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
                     content: 'حدث خطأ أثناء معالجة الأمر!',
-                    flags: [64]
+                    ephemeral: true
                 });
             }
         }
@@ -466,7 +466,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     if (selectedChannels.length === 0) {
                         await interaction.reply({
                             content: 'يجب اختيار روم واحد على الأقل قبل بدء المراقبة!',
-                            flags: [64]
+                            ephemeral: true
                         });
                         return;
                     }
@@ -537,7 +537,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     if (selectedChannelsForReport.length === 0) {
                         await interaction.reply({
                             content: 'لم يتم اختيار أي رومات للمراقبة!',
-                            flags: [64]
+                            ephemeral: true
                         });
                         return;
                     }
@@ -553,7 +553,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     if (detailedActivityData.length === 0) {
                         await interaction.reply({
                             content: 'لا توجد بيانات نشاط مفصلة حتى الآن!',
-                            flags: [64]
+                            ephemeral: true
                         });
                         return;
                     }
@@ -590,7 +590,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                         .setColor(0x9b59b6)
                         .setTimestamp();
                     
-                    await interaction.reply({ embeds: [detailedEmbed], flags: [64] });
+                    await interaction.reply({ embeds: [detailedEmbed], ephemeral: true });
                     break;
                     
                 case 'clear_activity_data':
@@ -602,7 +602,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                         .setColor(0x95a5a6)
                         .setTimestamp();
                     
-                    await interaction.reply({ embeds: [clearEmbed], flags: [64] });
+                    await interaction.reply({ embeds: [clearEmbed], ephemeral: true });
                     break;
                     
                 case 'select_all_channels':
@@ -706,7 +706,7 @@ activityBot.on('interactionCreate', async (interaction) => {
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
                     content: 'حدث خطأ أثناء معالجة العملية!',
-                    flags: [64]
+                    ephemeral: true
                 });
             }
         }
