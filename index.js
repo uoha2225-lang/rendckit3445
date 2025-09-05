@@ -1,6 +1,6 @@
-const { ticketBot, reviewBot } = require('./client');
-const { activityBot } = require('./activity-bot');
-const tokens = require('./tokens');
+const { ticketBot, reviewBot } = require('./client.js');
+const { activityBot } = require('./activity-bot.js');
+const tokens = require('./tokens.js');
 const http = require('http');
 
 // إنشاء HTTP server لـ Render health checks

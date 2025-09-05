@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, SlashCommandBuilder, REST, Routes } = require('discord.js');
-const tokens = require('./tokens');
+const tokens = require('./tokens.js');
 
 // إعداد العميل للبوتات
 const createBotClient = (intents = []) => {

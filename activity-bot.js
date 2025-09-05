@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, REST, Routes, ChannelType } = require('discord.js');
-const tokens = require('./tokens');
+const tokens = require('./tokens.js');
 
 // بوت مراقبة النشاط
 const activityBot = new Client({

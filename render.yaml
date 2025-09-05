@@ -3,6 +3,7 @@ services:
     name: discord-bots
     env: node
     plan: starter
+    rootDir: .
     buildCommand: npm install
     startCommand: npm start
     region: oregon
