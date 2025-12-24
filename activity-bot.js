@@ -71,18 +71,15 @@ const createControlButtons = (guildId) => {
             new ButtonBuilder()
                 .setCustomId('start_tracking')
                 .setLabel(isTracking ? 'إيقاف المراقبة' : 'بدء المراقبة')
-                .setStyle(isTracking ? ButtonStyle.Danger : ButtonStyle.Success)
-                .setEmoji(isTracking ? '🛑' : '🌟'),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('show_activity_report')
                 .setLabel('عرض تقرير النشاط')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji('💎'),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('clear_activity_data')
                 .setLabel('مسح البيانات')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('🧹')
         );
 };
 
@@ -96,13 +93,11 @@ const createAdvancedControlButtons = (guildId, channelsCount, currentPage = 0) =
             new ButtonBuilder()
                 .setCustomId('select_all_channels')
                 .setLabel(`مراقبة جميع الرومات (${channelsCount})`)
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji('🎧'),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('deselect_all_channels')
                 .setLabel('إلغاء تحديد الكل')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji('✨')
         );
     
     const row2 = new ActionRowBuilder();
@@ -115,7 +110,6 @@ const createAdvancedControlButtons = (guildId, channelsCount, currentPage = 0) =
                     .setCustomId(`page_prev_${currentPage - 1}`)
                     .setLabel('الصفحة السابقة')
                     .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('⬅️')
             );
         }
         
@@ -125,7 +119,6 @@ const createAdvancedControlButtons = (guildId, channelsCount, currentPage = 0) =
                     .setCustomId(`page_next_${currentPage + 1}`)
                     .setLabel('الصفحة التالية')
                     .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('➡️')
             );
         }
     }
@@ -135,8 +128,7 @@ const createAdvancedControlButtons = (guildId, channelsCount, currentPage = 0) =
         new ButtonBuilder()
             .setCustomId('show_selected_count')
             .setLabel(`المختار: ${selectedChannels.length}`)
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('💜')
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(true)
     );
     
@@ -282,7 +274,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                 const selectedChannels = activityBot.selectedChannels.get(guild.id) || [];
                 
                 const embed = new EmbedBuilder()
-                    .setTitle('🎼 لوحة مراقبة نشاط الرومات الصوتية المحدثة')
+                    .setTitle('لوحة مراقبة نشاط الرومات الصوتية المحدثة')
                     .setDescription(
                         `**إجمالي الرومات الصوتية:** ${voiceChannels.size}\n` +
                         `**المختار حالياً:** ${selectedChannels.length}\n\n` +
@@ -353,13 +345,13 @@ activityBot.on('interactionCreate', async (interaction) => {
                 
                 // أكثر الأعضاء نشاطاً (أول 10)
                 const topActive = activityData.slice(0, 10);
-                let reportText = '**👑 أكثر الأعضاء نشاطاً:**\n\n';
+                let reportText = '**أكثر الأعضاء نشاطاً:**\n\n';
                 
                 for (let i = 0; i < topActive.length; i++) {
                     const [userId, data] = topActive[i];
                     const currentTime = data.currentSession ? Date.now() - data.currentSession.joinTime : 0;
                     const totalTime = data.totalTime + currentTime;
-                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                    const medal = `${i + 1}.`;
                     
                     reportText += `${medal} <@${userId}> - ${formatDuration(totalTime)}\n`;
                     
@@ -370,7 +362,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                 }
                 
                 const embed = new EmbedBuilder()
-                    .setTitle('🔮 تقرير نشاط الرومات الصوتية')
+                    .setTitle('تقرير نشاط الرومات الصوتية')
                     .setDescription(reportText)
                     .addFields({
                         name: 'إجمالي الأعضاء المتفاعلين',
@@ -424,7 +416,7 @@ activityBot.on('interactionCreate', async (interaction) => {
         });
         
         const embed = new EmbedBuilder()
-            .setTitle('💜 تم تحديث اختيار الرومات')
+            .setTitle('تم تحديث اختيار الرومات')
             .setDescription(
                 updatedSelections.length > 0 
                     ? `**إجمالي الرومات المختارة: ${updatedSelections.length}**\n\n${channelNames.slice(0, 20).map(name => `• ${name}`).join('\n')}${updatedSelections.length > 20 ? `\n... و ${updatedSelections.length - 20} روم آخر` : ''}`
@@ -513,7 +505,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     }
                     
                     const statusEmbed = new EmbedBuilder()
-                        .setTitle(newStatus ? '🌟 تم بدء المراقبة' : '🛑 تم إيقاف المراقبة')
+                        .setTitle(newStatus ? 'تم بدء المراقبة' : 'تم إيقاف المراقبة')
                         .setDescription(
                             newStatus 
                                 ? `بدأت مراقبة النشاط في ${selectedChannels.length} روم صوتي\n✅ تم تسجيل الأعضاء الموجودين حالياً`
@@ -569,13 +561,13 @@ activityBot.on('interactionCreate', async (interaction) => {
                         detailedReport += `**<@${userId}>** - إجمالي: ${formatDuration(totalTime)}\n`;
                         
                         if (data.currentSession) {
-                            detailedReport += `🌐 متصل حالياً: ${data.currentSession.channelName} (منذ ${formatDuration(currentTime)})\n`;
+                            detailedReport += `متصل حالياً: ${data.currentSession.channelName} (منذ ${formatDuration(currentTime)})\n`;
                         }
                         
                         // آخر 3 جلسات
                         const recentSessions = data.sessions.slice(-3);
                         if (recentSessions.length > 0) {
-                            detailedReport += '🎨 الجلسات الأخيرة:\n';
+                            detailedReport += 'الجلسات الأخيرة:\n';
                             recentSessions.forEach(session => {
                                 const joinDate = new Date(session.joinTime).toLocaleString('ar-SA');
                                 detailedReport += `  • ${session.channelName}: ${formatDuration(session.duration)} (${joinDate})\n`;
@@ -585,7 +577,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     }
                     
                     const detailedEmbed = new EmbedBuilder()
-                        .setTitle('🎭 تقرير النشاط المفصل')
+                        .setTitle('تقرير النشاط المفصل')
                         .setDescription(detailedReport)
                         .setColor(0x9b59b6)
                         .setTimestamp();
@@ -597,7 +589,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     activityBot.voiceActivity.clear();
                     
                     const clearEmbed = new EmbedBuilder()
-                        .setTitle('🧹 تم مسح البيانات')
+                        .setTitle('تم مسح البيانات')
                         .setDescription('تم مسح جميع بيانات النشاط المحفوظة')
                         .setColor(0x95a5a6)
                         .setTimestamp();
@@ -614,7 +606,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     activityBot.selectedChannels.set(guildIdForAll, allChannelIds);
                     
                     const allSelectedEmbed = new EmbedBuilder()
-                        .setTitle('💜 تم اختيار جميع الرومات الصوتية')
+                        .setTitle('تم اختيار جميع الرومات الصوتية')
                         .setDescription(`تم اختيار جميع الرومات الصوتية (${allChannelIds.length} روم) للمراقبة.\n\nيمكنك الآن بدء المراقبة لتتبع نشاط جميع الأعضاء في كل الرومات الصوتية.`)
                         .setColor(0x00AE86)
                         .setTimestamp();
@@ -632,7 +624,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                     activityBot.selectedChannels.set(guildIdForNone, []);
                     
                     const noSelectionEmbed = new EmbedBuilder()
-                        .setTitle('✨ تم إلغاء تحديد جميع الرومات')
+                        .setTitle('تم إلغاء تحديد جميع الرومات')
                         .setDescription('تم إلغاء تحديد جميع الرومات الصوتية.\nيمكنك اختيار رومات محددة أو اختيار جميع الرومات مرة أخرى.')
                         .setColor(0xe74c3c)
                         .setTimestamp();
@@ -676,7 +668,7 @@ activityBot.on('interactionCreate', async (interaction) => {
                         const selectedChannelsForPage = activityBot.selectedChannels.get(guildIdForPage) || [];
                         
                         const pageEmbed = new EmbedBuilder()
-                            .setTitle(`🎼 صفحة ${targetPage + 1} - اختيار الرومات الصوتية`)
+                            .setTitle(`صفحة ${targetPage + 1} - اختيار الرومات الصوتية`)
                             .setDescription(`**إجمالي الرومات:** ${voiceChannelsForPage.size}\n**المختار حالياً:** ${selectedChannelsForPage.length}`)
                             .setColor(0x00AE86)
                             .setTimestamp();
