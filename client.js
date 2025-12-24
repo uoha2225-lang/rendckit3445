@@ -85,7 +85,7 @@ const createTicketMainEmbed = () => {
     return new EmbedBuilder()
         .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('attachment://IMG_5570_1757012556488.png')
+        .setImage('attachment://northc_ticket.png')
         .setColor(0x000000)
         .setTimestamp();
 };
@@ -106,7 +106,7 @@ const createTicketEmbed = (ticketType, description, user) => {
             { name: 'التاريخ:', value: new Date().toLocaleString('ar-SA'), inline: true }
         )
         .setColor(0x00AE86)
-        .setImage('attachment://IMG_5570_1757012556488.png')
+        .setImage('attachment://northc_ticket.png')
         .setTimestamp()
         .setFooter({ text: 'نظام التذاكر' });
     
@@ -463,11 +463,11 @@ ticketBot.on('interactionCreate', async (interaction) => {
                         };
                         
                         // فحص وجود الصورة قبل إرفاقها
-                        if (fs.existsSync('attached_assets/IMG_5570_1757012556488.png')) {
-                            const attachment = new AttachmentBuilder('attached_assets/IMG_5570_1757012556488.png', { name: 'IMG_5570_1757012556488.png' });
+                        if (fs.existsSync('attached_assets/northc_ticket.png')) {
+                            const attachment = new AttachmentBuilder('attached_assets/northc_ticket.png', { name: 'northc_ticket.png' });
                             replyOptions.files = [attachment];
                         } else {
-                            console.warn('⚠️ الصورة غير موجودة: attached_assets/IMG_5570_1757012556488.png');
+                            console.warn('⚠️ الصورة غير موجودة: attached_assets/northc_ticket.png');
                         }
                         
                         await interaction.reply(replyOptions);
