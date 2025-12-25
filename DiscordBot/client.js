@@ -195,18 +195,7 @@ const createTicketOptionsButtons = () => {
                 .setStyle(ButtonStyle.Secondary)
         );
     
-    const row2 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId('ticket_inquiry')
-                .setLabel('استفسار')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId('ticket_admin_complaint')
-                .setLabel('شكوى على اداري')
-                .setStyle(ButtonStyle.Secondary)
-        );
-    return [row1, row2];
+    return [row1];
 };
 
 // إنشاء أزرار إدارة التذاكر
