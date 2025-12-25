@@ -24,13 +24,13 @@ const server = http.createServer((req, res) => {
                 status: "healthy",
                 message: "البوتات تعمل بنجاح",
                 bots: {
-                    ticket_bot: ticketBot.user
+                    ticket_bot: (ticketBot && ticketBot.user)
                         ? ticketBot.user.tag
                         : "غير متصل",
-                    review_bot: reviewBot.user
+                    review_bot: (reviewBot && reviewBot.user)
                         ? reviewBot.user.tag
                         : "غير متصل",
-                    activity_bot: activityBot.user
+                    activity_bot: (activityBot && activityBot.user)
                         ? activityBot.user.tag
                         : "غير متصل",
                 },

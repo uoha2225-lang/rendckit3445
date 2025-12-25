@@ -21,12 +21,12 @@ args = "Discord Bots"
 name = "Discord Bots"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm start"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node index.js"
 
 [[ports]]
 localPort = 10000
