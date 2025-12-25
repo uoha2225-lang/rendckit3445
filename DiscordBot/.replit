@@ -1,4 +1,10 @@
 modules = ["nodejs-20"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
 [workflows]
 runButton = "Project"
 
@@ -15,18 +21,17 @@ args = "Discord Bots"
 name = "Discord Bots"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd DiscordBot && node index.js"
-
 [workflows.workflow.metadata]
 outputType = "console"
 
-[agent]
-expertMode = true
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3000 node index.js"
+waitForPort = 3000
 
-[nix]
-channel = "stable-25_05"
+[[ports]]
+localPort = 3000
+externalPort = 3000
 
 [[ports]]
 localPort = 10000

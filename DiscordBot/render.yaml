@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: discord-bots
+    env: node
+    plan: starter
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm start
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REMINDER_BOT_TOKEN
+        sync: false
+      - key: REVIEW_BOT_TOKEN
+        sync: false
+      - key: ACTIVITY_BOT_TOKEN
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true

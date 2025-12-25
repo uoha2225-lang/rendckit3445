@@ -1,8 +1,14 @@
-# Replit.md
+# Discord Bots Project
 
 ## Overview
 
-This is an empty repository with no existing code or structure. The project is starting from scratch and will need to be built from the ground up based on user requirements.
+This project contains three Discord bots built with discord.js v14:
+
+1. **Ticket Bot** - A ticket system with 4 ticket types (complaints, compensation, transfer, admin complaints) featuring interactive buttons and role-based permissions
+2. **Review Bot** - A star rating system with statistics tracking and dedicated review channels
+3. **Activity Monitor Bot** - Tracks member activity in voice channels, calculating time spent and generating activity reports
+
+The bots are designed to run together on a single Node.js process with an HTTP health check server for deployment on platforms like Render.
 
 ## User Preferences
 
@@ -10,24 +16,44 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-No architectural decisions have been made yet as this is a blank repository. Key decisions to be made include:
+### Multi-Bot Architecture
+- **Single Entry Point**: `index.js` initializes all three bots and creates an HTTP server for health checks
+- **Modular Bot Files**: Each bot has its own client instance (`client.js` for ticket/review bots, `activity-bot.js` for activity bot)
+- **Shared Configuration**: `tokens.js` centralizes all bot tokens and settings using environment variables
 
-- **Frontend Framework**: To be determined based on project requirements
-- **Backend Framework**: To be determined based on project requirements
-- **Data Storage**: To be determined based on project requirements
-- **Authentication**: To be determined based on project requirements
+### Discord.js Client Structure
+- Uses discord.js v14 with Gateway Intents for specific permissions per bot
+- Each bot maintains its own Collections/Maps for state management:
+  - Ticket bot: active tickets, admin roles, log channels, cooldowns
+  - Review bot: review stats, review channels
+  - Activity bot: voice activity tracking, selected channels, tracking status
 
-When building out the architecture, follow these principles:
-1. Start simple and add complexity only when needed
-2. Use well-established patterns and frameworks
-3. Keep code modular and maintainable
-4. Document significant decisions as they are made
+### HTTP Health Check Server
+- Built-in HTTP server on configurable PORT (default 10000)
+- Exposes `/health` and `/` endpoints returning JSON status of all bots
+- Required for deployment platforms that need health monitoring
+
+### Command Registration
+- Uses Discord Slash Commands via REST API
+- Commands are registered per bot with SlashCommandBuilder
+- Supports both Arabic and English command names
 
 ## External Dependencies
 
-No external dependencies or integrations exist yet. Common integrations to consider as the project develops:
+### Discord API
+- **discord.js v14.22.1** - Primary library for Discord bot functionality
+- Requires bot tokens from Discord Developer Portal for each of the three bots
 
-- **Database**: PostgreSQL, SQLite, or other based on needs
-- **Authentication**: Session-based, JWT, or OAuth depending on requirements
-- **APIs**: To be integrated as needed
-- **Third-party Services**: To be added based on project requirements
+### Environment Variables Required
+| Variable | Purpose |
+|----------|---------|
+| `REMINDER_BOT_TOKEN` | Token for the ticket bot |
+| `REVIEW_BOT_TOKEN` | Token for the review bot |
+| `ACTIVITY_BOT_TOKEN` | Token for the activity monitor bot |
+| `PORT` | HTTP server port (optional, defaults to 10000) |
+| `REVIEW_CHANNEL_ID` | Default review channel (optional) |
+
+### Deployment Platform
+- Designed for Render.com deployment
+- Requires Node.js >= 18.0.0
+- No database - all state is in-memory (resets on restart)
