@@ -86,7 +86,7 @@ const createTicketMainEmbed = () => {
     return new EmbedBuilder()
         .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('https://replit.com/attached_assets/IMG_223223424_1766852684390.png')
+        .setImage('https://cdn.discordapp.com/attachments/1454263579330084970/1454461889567526913/IMG_1134.png?ex=69512cb1&is=694fdb31&hm=728a486cae7e848bcc286aa4e3fd37a00ca374d423ad4f2bde1272a945798dc6&')
         .setColor(0x0099ff)
         .setTimestamp();
 };
@@ -94,7 +94,7 @@ const createTicketMainEmbed = () => {
 const createTicketOptionsEmbed = () => {
     return new EmbedBuilder()
         .setTitle('فتح تذكرة من هنا')
-        .setImage('https://replit.com/attached_assets/IMG_223223424_1766852936551.png')
+        .setImage('https://cdn.discordapp.com/attachments/1454263579330084970/1454461889567526913/IMG_1134.png?ex=69512cb1&is=694fdb31&hm=728a486cae7e848bcc286aa4e3fd37a00ca374d423ad4f2bde1272a945798dc6&')
         .setColor(0x0099ff);
 };
 
@@ -126,7 +126,7 @@ const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
             { name: '🔢 | رقم التذكرة', value: `\` ${ticketNumber} \``, inline: true }
         )
         .setColor(0x0099ff)
-        .setImage('https://replit.com/attached_assets/IMG_223223424_1766852684390.png')
+        .setImage('https://cdn.discordapp.com/attachments/1454263579330084970/1454461889567526913/IMG_1134.png?ex=69512cb1&is=694fdb31&hm=728a486cae7e848bcc286aa4e3fd37a00ca374d423ad4f2bde1272a945798dc6&')
         .setThumbnail(user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
     
