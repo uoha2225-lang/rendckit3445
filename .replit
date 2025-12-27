@@ -31,3 +31,7 @@ channel = "stable-25_05"
 [[ports]]
 localPort = 10000
 externalPort = 80
+
+[deployment]
+deploymentTarget = "vm"
+run = ["node", "DiscordBot/index.js"]
