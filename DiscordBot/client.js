@@ -21,6 +21,7 @@ ticketBot.activeTickets = new Collection();
 ticketBot.adminRoles = new Collection(); // لحفظ رتب مشرفين التذاكر
 ticketBot.logChannels = new Collection(); // لحفظ رومز سجلات التذاكر
 ticketBot.cooldowns = new Map(); // لمنع الضغط المتكرر
+ticketBot.ticketCounters = new Map(); // عداد التذاكر لكل سيرفر
 ticketBot.ticketsByType = new Collection(); // لحفظ التذاكر حسب النوع {guildId: {ticketType: [tickets]}}
 ticketBot.ticketRoles = new Collection(); // لحفظ رتب كل نوع تذكرة {guildId: {ticketType: [roleIds]}}
 
@@ -96,19 +97,37 @@ const createTicketOptionsEmbed = () => {
         .setColor(0x2F3136);
 };
 
-const createTicketEmbed = (ticketType, description, user) => {
+const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
+    // جلب رتب مشرفين التذاكر (إذا تم تحديدها)
+    const adminRoleIds = ticketBot.adminRoles.get(guild.id) || [];
+    const adminRolesMention = adminRoleIds.length > 0 
+        ? adminRoleIds.map(id => `<@&${id}>`).join(' ') 
+        : 'مسؤول عن النقل';
+
     const embed = new EmbedBuilder()
-        .setTitle(`🎫 تذكرة جديدة - ${ticketType}`)
-        .setDescription(description)
+        .setAuthor({ 
+            name: `👤 | مالك التذكرة: ${user.username}`, 
+            iconURL: user.displayAvatarURL({ dynamic: true }) 
+        })
+        .setTitle('🎫 تفاصيل التذكرة الجديدة')
         .addFields(
-            { name: 'نوع التذكرة:', value: ticketType, inline: true },
-            { name: 'المستخدم:', value: `<@${user.id}>`, inline: true },
-            { name: 'التاريخ:', value: new Date().toLocaleString('ar-SA'), inline: true }
+            { name: '🛡️ | مشرفي التذاكر', value: adminRolesMention, inline: true },
+            { name: '📅 | تاريخ التذكرة', value: new Date().toLocaleString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: 'numeric', 
+                minute: 'numeric', 
+                hour12: true 
+            }), inline: false },
+            { name: '❓ | قسم التذكرة', value: `\` ${ticketType} \``, inline: true },
+            { name: '🔢 | رقم التذكرة', value: `\` ${ticketNumber} \``, inline: true }
         )
-        .setColor(0x00AE86)
+        .setColor(0x2F3136)
         .setImage('attachment://logo.png')
-        .setTimestamp()
-        .setFooter({ text: 'نظام التذاكر' });
+        .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+        .setTimestamp();
     
     return embed;
 };
@@ -532,6 +551,11 @@ ticketBot.on('interactionCreate', async (interaction) => {
 
                 await interaction.deferReply({ ephemeral: true });
 
+                // تحديث العداد
+                let currentCounter = ticketBot.ticketCounters.get(interaction.guild.id) || 0;
+                currentCounter++;
+                ticketBot.ticketCounters.set(interaction.guild.id, currentCounter);
+
                 // تحديد الكاتيجوري
                 const categoryId = process.env.TICKET_CATEGORY_ID || tokens.TICKET_CATEGORY_ID;
                 const category = categoryId ? interaction.guild.channels.cache.get(categoryId) : null;
@@ -541,7 +565,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                 }
 
                 // إنشاء الروم
-                const channelName = `${selectedType.split('_').pop()}-${interaction.user.username}`;
+                const channelName = `🎫・${currentCounter}`;
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildText,
@@ -562,7 +586,7 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     ]
                 });
 
-                const embed = createTicketEmbed(ticketTypeName, `مرحباً بك <@${interaction.user.id}>\nسيقوم فريق الدعم بالرد عليك قريباً.`, interaction.user);
+                const embed = createTicketEmbed(ticketTypeName, currentCounter, interaction.user, interaction.guild);
                 const buttons = createTicketManageButtons();
 
                 await ticketChannel.send({
