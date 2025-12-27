@@ -94,6 +94,7 @@ const createTicketMainEmbed = () => {
 const createTicketOptionsEmbed = () => {
     return new EmbedBuilder()
         .setTitle('فتح تذكرة من هنا')
+        .setImage('https://replit.com/attached_assets/IMG_223223424_1766852936551.png')
         .setColor(0x0099ff);
 };
 
