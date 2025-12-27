@@ -86,7 +86,7 @@ const createTicketMainEmbed = () => {
     return new EmbedBuilder()
         .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('https://replit.com/attached_assets/I%D9%82rgeg5_1766852187264.png')
+        .setImage('https://replit.com/attached_assets/I%D9%82rgeg5_1766852255547.png')
         .setColor(0x0099ff)
         .setTimestamp();
 };
@@ -125,7 +125,7 @@ const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
             { name: '🔢 | رقم التذكرة', value: `\` ${ticketNumber} \``, inline: true }
         )
         .setColor(0x0099ff)
-        .setImage('https://replit.com/attached_assets/I%D9%82rgeg5_1766852187264.png')
+        .setImage('https://replit.com/attached_assets/I%D9%82rgeg5_1766852255547.png')
         .setThumbnail(user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
     
