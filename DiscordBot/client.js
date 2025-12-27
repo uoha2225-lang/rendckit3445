@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, SlashCommandBuilder, REST, Routes, StringSelectMenuBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, SlashCommandBuilder, REST, Routes, StringSelectMenuBuilder, PermissionFlagsBits, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const tokens = require('./tokens.js');
 
 // إعداد العميل للبوتات
@@ -233,6 +233,55 @@ const createTicketOptionsButtons = () => {
     return [row];
 };
 
+// إنشاء embed خيارات التذكرة للإدارة
+const createTicketAdminOptionsEmbed = () => {
+    return new EmbedBuilder()
+        .setTitle('⚙️ إدارة التذكرة')
+        .setDescription('اختر خيارًا من القائمة المنسدلة أدناه •')
+        .setColor(0x0099ff);
+};
+
+// إنشاء قائمة خيارات الإدارة
+const createTicketAdminOptionsRow = () => {
+    const select = new StringSelectMenuBuilder()
+        .setCustomId('ticket_admin_options_select')
+        .setPlaceholder('اختر خيارًا للتذكرة')
+        .addOptions([
+            {
+                label: 'إلغاء المطالبة',
+                description: 'إلغاء المطالبة بالتذكرة',
+                value: 'admin_unclaim',
+                emoji: '❌',
+            },
+            {
+                label: 'إغلاق بسبب',
+                description: 'إغلاق التذكرة بسبب محدد',
+                value: 'admin_close_reason',
+                emoji: '🔒',
+            },
+            {
+                label: 'إضافة شخص للتذكرة',
+                description: 'إضافة شخص إلى هذه التذكرة',
+                value: 'admin_add_member',
+                emoji: '👥',
+            },
+            {
+                label: 'تذكير العضو',
+                description: 'إرسال تنبيه للعضو في الخاص',
+                value: 'admin_remind_member',
+                emoji: '📧',
+            },
+            {
+                label: 'طلب نسخة من التذكرة',
+                description: 'طلب نسخة من التذكرة في الخاص',
+                value: 'admin_transcript',
+                emoji: '📄',
+            },
+        ]);
+
+    return new ActionRowBuilder().addComponents(select);
+};
+
 // إنشاء أزرار إدارة التذاكر
 const createTicketManageButtons = () => {
     const row = new ActionRowBuilder()
@@ -246,7 +295,12 @@ const createTicketManageButtons = () => {
                 .setCustomId('close_ticket')
                 .setLabel('قفل التذكرة')
                 .setStyle(ButtonStyle.Danger)
-                .setEmoji('🔒')
+                .setEmoji('🔒'),
+            new ButtonBuilder()
+                .setCustomId('ticket_admin_options')
+                .setLabel('خيارات التذكرة')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('🗃️')
         );
     return row;
 };
@@ -515,6 +569,29 @@ ticketBot.on('interactionCreate', async (interaction) => {
     
     processedInteractions.set(interaction.id, Date.now());
     
+    // معالجة المودال (Modals)
+    if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'close_ticket_reason_modal') {
+            const reason = interaction.fields.getTextInputValue('close_reason_input');
+            await interaction.reply({ content: `🔒 يتم إغلاق التذكرة بسبب: ${reason}` });
+            setTimeout(() => {
+                if (interaction.channel) interaction.channel.delete().catch(() => {});
+            }, 5000);
+        }
+        
+        if (interaction.customId === 'add_member_modal') {
+            const memberId = interaction.fields.getTextInputValue('member_id_input').replace(/[<@!>]/g, '');
+            try {
+                const member = await interaction.guild.members.fetch(memberId);
+                await interaction.channel.permissionOverwrites.edit(member.id, { ViewChannel: true, SendMessages: true });
+                await interaction.reply({ content: `✅ تم إضافة ${member.user.username} إلى التذكرة.` });
+            } catch (err) {
+                await interaction.reply({ content: '❌ تعذر العثور على العضو، تأكد من الـ ID الصحيح.', ephemeral: true });
+            }
+        }
+        return;
+    }
+
     // تسجيل التفاعل للتشخيص
     console.log('🔔 تفاعل جديد:', {
         type: interaction.type,
@@ -523,9 +600,83 @@ ticketBot.on('interactionCreate', async (interaction) => {
         user: interaction.user.username,
         guild: interaction.guild?.name || 'DM'
     });
-    
-    if (interaction.isStringSelectMenu()) {
-        if (interaction.customId === 'ticket_type_select') {
+
+    // معالجة اختيار خيارات الإدارة
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_admin_options_select') {
+        const selectedOption = interaction.values[0];
+        const channel = interaction.channel;
+        
+        const adminRoleIds = ticketBot.adminRoles.get(interaction.guildId) || [];
+        const hasAdminRole = interaction.member.roles.cache.some(role => adminRoleIds.includes(role.id)) || 
+                            interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        
+        if (!hasAdminRole) {
+            return interaction.reply({ content: '❌ ليس لديك صلاحية لاستخدام خيارات الإدارة.', ephemeral: true });
+        }
+
+        switch (selectedOption) {
+            case 'admin_unclaim':
+                await channel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null });
+                await interaction.reply({ content: '✅ تم إلغاء المطالبة بالتذكرة.' });
+                break;
+            case 'admin_close_reason':
+                const modal = new ModalBuilder().setCustomId('close_ticket_reason_modal').setTitle('إغلاق التذكرة لسبب');
+                const reasonInput = new TextInputBuilder().setCustomId('close_reason_input').setLabel('سبب الإغلاق').setStyle(TextInputStyle.Paragraph).setRequired(true);
+                modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+                await interaction.showModal(modal);
+                break;
+            case 'admin_add_member':
+                const addMemberModal = new ModalBuilder().setCustomId('add_member_modal').setTitle('إضافة عضو للتذكرة');
+                const memberInput = new TextInputBuilder().setCustomId('member_id_input').setLabel('معرف العضو (ID) أو منشن').setStyle(TextInputStyle.Short).setRequired(true);
+                addMemberModal.addComponents(new ActionRowBuilder().addComponents(memberInput));
+                await interaction.showModal(addMemberModal);
+                break;
+            case 'admin_remind_member':
+                try {
+                    const ticketOwnerId = channel.topic?.split(': ')[1];
+                    if (ticketOwnerId) {
+                        const owner = await interaction.guild.members.fetch(ticketOwnerId);
+                        await owner.send(`🔔 تذكير: تذكرتك المفتوحة في **${interaction.guild.name}** بانتظار ردك في <#${channel.id}>`).catch(() => {});
+                        await interaction.reply({ content: '✅ تم إرسال تذكير للعضو في الخاص.', ephemeral: true });
+                    } else {
+                        await interaction.reply({ content: '❌ لم يتم العثور على مالك التذكرة.', ephemeral: true });
+                    }
+                } catch (err) {
+                    await interaction.reply({ content: '❌ تعذر إرسال رسالة خاصة للعضو.', ephemeral: true });
+                }
+                break;
+            case 'admin_transcript':
+                await interaction.reply({ content: '⏳ يتم تجهيز نسخة التذكرة وإرسالها لخاصك...', ephemeral: true });
+                try {
+                    const messages = await channel.messages.fetch({ limit: 100 });
+                    const transcript = messages.map(m => `${m.author.tag}: ${m.content}`).reverse().join('\n');
+                    const buffer = Buffer.from(transcript, 'utf-8');
+                    await interaction.user.send({ 
+                        content: `📄 نسخة تذكرة: **${channel.name}**`,
+                        files: [{ attachment: buffer, name: `transcript-${channel.name}.txt` }] 
+                    }).catch(() => {});
+                } catch (err) {
+                    await interaction.followUp({ content: '❌ تعذر إرسال النسخة لخاصك، تأكد من فتح الخاص.', ephemeral: true });
+                }
+                break;
+        }
+        return;
+    }
+
+    if (interaction.isButton() && interaction.customId === 'ticket_admin_options') {
+        const adminRoleIds = ticketBot.adminRoles.get(interaction.guildId) || [];
+        const hasAdminRole = interaction.member.roles.cache.some(role => adminRoleIds.includes(role.id)) || 
+                            interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        
+        if (!hasAdminRole) {
+            return interaction.reply({ content: '❌ هذا الخيار مخصص للإدارة فقط.', ephemeral: true });
+        }
+        
+        const embed = createTicketAdminOptionsEmbed();
+        const row = createTicketAdminOptionsRow();
+        await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+        return;
+    }
             const selectedType = interaction.values[0];
             
             // خريطة لأسماء الأنواع باللغة العربية للرسائل
