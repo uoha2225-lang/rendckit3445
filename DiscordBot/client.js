@@ -87,7 +87,7 @@ const createTicketMainEmbed = () => {
         .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
         .setImage('attachment://logo.png')
-        .setColor(0x000000)
+        .setColor(0x2F3136)
         .setTimestamp();
 };
 
