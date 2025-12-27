@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, SlashCommandBuilder, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, SlashCommandBuilder, REST, Routes, StringSelectMenuBuilder } = require('discord.js');
 const tokens = require('./tokens.js');
 
 // إعداد العميل للبوتات
@@ -183,19 +183,34 @@ const createTicketMainButton = () => {
 };
 
 const createTicketOptionsButtons = () => {
-    const row1 = new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder()
-                .setCustomId('ticket_admin_transfer')
-                .setLabel('النقل الاداري')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId('ticket_military_transfer')
-                .setLabel('النقل العسكري')
-                .setStyle(ButtonStyle.Secondary)
-        );
-    
-    return [row1];
+    const select = new StringSelectMenuBuilder()
+        .setCustomId('ticket_type_select')
+        .setPlaceholder('اختر فئة التذكرة')
+        .addOptions([
+            {
+                label: 'النقل الاداري',
+                value: 'ticket_admin_transfer',
+                emoji: '⚙️',
+            },
+            {
+                label: 'النقل العسكري',
+                value: 'ticket_military_transfer',
+                emoji: '⚔️',
+            },
+            {
+                label: 'استرجاع الرتب',
+                value: 'ticket_rank_restore',
+                emoji: '✈️',
+            },
+            {
+                label: 'نقل رتب بنات',
+                value: 'ticket_girls_transfer',
+                emoji: '👑',
+            },
+        ]);
+
+    const row = new ActionRowBuilder().addComponents(select);
+    return [row];
 };
 
 // إنشاء أزرار إدارة التذاكر
@@ -489,6 +504,84 @@ ticketBot.on('interactionCreate', async (interaction) => {
         guild: interaction.guild?.name || 'DM'
     });
     
+    if (interaction.isStringSelectMenu()) {
+        if (interaction.customId === 'ticket_type_select') {
+            const selectedType = interaction.values[0];
+            
+            // خريطة لأسماء الأنواع باللغة العربية للرسائل
+            const typeNames = {
+                'ticket_admin_transfer': 'النقل الاداري',
+                'ticket_military_transfer': 'النقل العسكري',
+                'ticket_rank_restore': 'استرجاع الرتب',
+                'ticket_girls_transfer': 'نقل رتب بنات'
+            };
+
+            const ticketTypeName = typeNames[selectedType] || 'عام';
+            
+            try {
+                // منع التكرار (cooldown)
+                const cooldownKey = `${interaction.guild.id}-${interaction.user.id}`;
+                if (ticketBot.cooldowns.has(cooldownKey)) {
+                    const expirationTime = ticketBot.cooldowns.get(cooldownKey);
+                    if (Date.now() < expirationTime) {
+                        const timeLeft = ((expirationTime - Date.now()) / 1000).toFixed(1);
+                        return interaction.reply({ content: `يرجى الانتظار ${timeLeft} ثانية قبل فتح تذكرة أخرى.`, ephemeral: true });
+                    }
+                }
+
+                await interaction.deferReply({ ephemeral: true });
+
+                // تحديد الكاتيجوري
+                const categoryId = process.env.TICKET_CATEGORY_ID;
+                const category = categoryId ? interaction.guild.channels.cache.get(categoryId) : null;
+
+                // إنشاء الروم
+                const channelName = `${selectedType.split('_').pop()}-${interaction.user.username}`;
+                const ticketChannel = await interaction.guild.channels.create({
+                    name: channelName,
+                    type: 0, // GuildText
+                    parent: category,
+                    permissionOverwrites: [
+                        { id: interaction.guild.id, deny: [0x400] }, // ViewChannel
+                        { id: interaction.user.id, allow: [0x400, 0x800, 0x10000] }, // View, Send, ReadHistory
+                        { id: ticketBot.user.id, allow: [0x400, 0x800, 0x10000, 0x10] } // ManageChannels
+                    ]
+                });
+
+                const embed = createTicketEmbed(ticketTypeName, `مرحباً بك <@${interaction.user.id}>\nسيقوم فريق الدعم بالرد عليك قريباً.`, interaction.user);
+                const buttons = createTicketManageButtons();
+
+                const message = await ticketChannel.send({
+                    content: `<@${interaction.user.id}> | فريق الدعم`,
+                    embeds: [embed],
+                    components: [buttons]
+                });
+
+                // إضافة المشرفين
+                const adminRoleIds = ticketBot.adminRoles.get(interaction.guild.id) || [];
+                for (const roleId of adminRoleIds) {
+                    await ticketChannel.permissionOverwrites.edit(roleId, { 0x400: true, 0x800: true, 0x10000: true });
+                }
+
+                // إضافة الرتب المرتبطة بنوع التذكرة
+                const typeKey = selectedType.replace('ticket_', '');
+                const typeSpecificRoles = ticketBot.ticketRoles.get(interaction.guild.id)?.[typeKey] || [];
+                for (const roleId of typeSpecificRoles) {
+                    await ticketChannel.permissionOverwrites.edit(roleId, { 0x400: true, 0x800: true, 0x10000: true });
+                }
+
+                // تعيين Cooldown (30 ثانية)
+                ticketBot.cooldowns.set(cooldownKey, Date.now() + 30000);
+
+                await interaction.editReply({ content: `تم فتح تذكرتك بنجاح: ${ticketChannel}` });
+
+            } catch (error) {
+                console.error('خطأ في إنشاء التذكرة:', error);
+                await interaction.editReply({ content: 'حدث خطأ أثناء محاولة فتح التذكرة.' });
+            }
+        }
+    }
+
     if (interaction.isChatInputCommand()) {
         const { commandName } = interaction;
 
@@ -780,6 +873,10 @@ ticketBot.on('interactionCreate', async (interaction) => {
                             }).catch(() => {});
                         }
                     }
+                    break;
+
+                case 'ticket_type_select':
+                    // تم التعامل معه في الجزء العلوي
                     break;
 
                 case 'ticket_admin_transfer':
