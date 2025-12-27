@@ -533,15 +533,19 @@ ticketBot.on('interactionCreate', async (interaction) => {
                 await interaction.deferReply({ ephemeral: true });
 
                 // تحديد الكاتيجوري
-                const categoryId = process.env.TICKET_CATEGORY_ID;
+                const categoryId = process.env.TICKET_CATEGORY_ID || tokens.TICKET_CATEGORY_ID;
                 const category = categoryId ? interaction.guild.channels.cache.get(categoryId) : null;
+
+                if (categoryId && !category) {
+                    console.error(`⚠️ الكاتيجوري ${categoryId} غير موجود في السيرفر`);
+                }
 
                 // إنشاء الروم
                 const channelName = `${selectedType.split('_').pop()}-${interaction.user.username}`;
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: 0, // GuildText
-                    parent: category,
+                    parent: category || null,
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [0x400] }, // ViewChannel
                         { id: interaction.user.id, allow: [0x400, 0x800, 0x10000] }, // View, Send, ReadHistory
