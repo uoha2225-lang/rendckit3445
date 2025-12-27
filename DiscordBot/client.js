@@ -634,28 +634,10 @@ ticketBot.on('interactionCreate', async (interaction) => {
                     const mainButton = createTicketMainButton();
                     
                     try {
-                        // إرسال الصورة مع الembed
-                        const { AttachmentBuilder } = require('discord.js');
-                        const fs = require('fs');
-                        
-                        let replyOptions = { 
+                        await interaction.reply({ 
                             embeds: [mainEmbed], 
                             components: [mainButton]
-                        };
-                        
-                        // فحص وجود الصورة قبل إرفاقها
-                        if (fs.existsSync('DiscordBot/logo.png')) {
-                            const attachment = new AttachmentBuilder('DiscordBot/logo.png', { name: 'logo.png' });
-                            replyOptions.files = [attachment];
-                            mainEmbed.setImage('attachment://logo.png');
-                        } else if (fs.existsSync('attached_assets/northc_ticket.png')) {
-                            const attachment = new AttachmentBuilder('attached_assets/northc_ticket.png', { name: 'northc_ticket.png' });
-                            replyOptions.files = [attachment];
-                        } else {
-                            console.warn('⚠️ الصورة غير موجودة: DiscordBot/logo.png');
-                        }
-                        
-                        await interaction.reply(replyOptions);
+                        });
                         console.log('✅ تم إرسال نظام التذاكر بنجاح');
                         
                     } catch (replyError) {
