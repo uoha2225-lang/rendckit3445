@@ -86,15 +86,15 @@ const createTicketMainEmbed = () => {
     return new EmbedBuilder()
         .setTitle('افتح تذكرتك واختار مايناسبك')
         .setDescription('فتح تذكرة من هنا')
-        .setImage('attachment://logo.png')
-        .setColor(0x2F3136)
+        .setImage('https://replit.com/attached_assets/I%D9%82rgeg5_1766851730623.png')
+        .setColor(0x0099ff)
         .setTimestamp();
 };
 
 const createTicketOptionsEmbed = () => {
     return new EmbedBuilder()
         .setTitle('فتح تذكرة من هنا')
-        .setColor(0x2F3136);
+        .setColor(0x0099ff);
 };
 
 const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
@@ -124,8 +124,8 @@ const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
             { name: '❓ | قسم التذكرة', value: `\` ${ticketType} \``, inline: true },
             { name: '🔢 | رقم التذكرة', value: `\` ${ticketNumber} \``, inline: true }
         )
-        .setColor(0x2F3136)
-        .setImage('attachment://logo.png')
+        .setColor(0x0099ff)
+        .setImage('https://replit.com/attached_assets/I%D9%82rgeg5_1766851730623.png')
         .setThumbnail(user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
     
