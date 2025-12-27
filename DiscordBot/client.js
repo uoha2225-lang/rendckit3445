@@ -126,10 +126,10 @@ const createTicketOptionsButtons = () => {
         .setCustomId('ticket_type_select')
         .setPlaceholder('اختر فئة التذكرة')
         .addOptions([
-            { label: 'شكوى على إدارة عليا', value: 'ticket_complaint_top', emoji: '🏢' },
-            { label: 'تعويض', value: 'ticket_compensation', emoji: '💰' },
-            { label: 'نقل', value: 'ticket_transfer', emoji: '🔄' },
-            { label: 'شكوى على إداري', value: 'ticket_complaint_admin', emoji: '👮' },
+            { label: 'النقل الاداري', value: 'ticket_admin_transfer', emoji: '⚙️' },
+            { label: 'النقل العسكري', value: 'ticket_military_transfer', emoji: '⚔️' },
+            { label: 'استرجاع الرتب', value: 'ticket_rank_restore', emoji: '✈️' },
+            { label: 'نقل رتب بنات', value: 'ticket_girls_transfer', emoji: '💖' },
         ]);
     return [new ActionRowBuilder().addComponents(select)];
 };
@@ -245,7 +245,12 @@ ticketBot.on('interactionCreate', async interaction => {
     if (interaction.isStringSelectMenu()) {
         if (interaction.customId === 'ticket_type_select') {
             const type = interaction.values[0];
-            const typeNames = { ticket_complaint_top: 'شكوى إدارة عليا', ticket_compensation: 'تعويض', ticket_transfer: 'نقل', ticket_complaint_admin: 'شكوى إداري' };
+            const typeNames = { 
+                ticket_admin_transfer: 'النقل الاداري', 
+                ticket_military_transfer: 'النقل العسكري', 
+                ticket_rank_restore: 'استرجاع الرتب', 
+                ticket_girls_transfer: 'نقل رتب بنات' 
+            };
             await interaction.deferReply({ ephemeral: true });
             
             let counter = (ticketBot.ticketCounters.get(interaction.guildId) || 0) + 1;
