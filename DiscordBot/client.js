@@ -139,7 +139,7 @@ const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
 
     const adminRolesMention = adminRoleIds.length > 0
         ? adminRoleIds.map(id => `<@&${id}>`).join(' ')
-        : 'مسؤول عن النقل';
+        : 'ticket manager/Ticket Support';
 
     return new EmbedBuilder()
         .setAuthor({ name: `👤 | مالك التذكرة: ${user.username}`, iconURL: TICKET_EMBED_IMAGE_URL })
@@ -502,6 +502,12 @@ ticketBot.on('interactionCreate', async interaction => {
         if (interaction.isButton()) {
             if (interaction.customId === 'open_ticket_menu') {
                 await interaction.deferReply({ ephemeral: true });
+                const existingTicket = interaction.guild.channels.cache.find(
+                    ch => ch.topic && ch.topic.includes(`Owner: ${interaction.user.id}`)
+                );
+                if (existingTicket) {
+                    return interaction.editReply({ content: `❌ لديك تذكرة مفتوحة بالفعل: ${existingTicket}\nأغلق تذكرتك الحالية أولاً قبل فتح تذكرة جديدة.` });
+                }
                 return interaction.editReply(buildTicketMessage(createTicketOptionsEmbed(), { components: createTicketOptionsButtons() }));
             }
 
@@ -530,6 +536,13 @@ ticketBot.on('interactionCreate', async interaction => {
                     ticket_tech_support:'طلب دعم فني',
                 };
                 await interaction.deferReply({ ephemeral: true });
+
+                const duplicateTicket = interaction.guild.channels.cache.find(
+                    ch => ch.topic && ch.topic.includes(`Owner: ${interaction.user.id}`)
+                );
+                if (duplicateTicket) {
+                    return interaction.editReply({ content: `❌ لديك تذكرة مفتوحة بالفعل: ${duplicateTicket}\nأغلق تذكرتك الحالية أولاً قبل فتح تذكرة جديدة.` });
+                }
 
                 let counter = (ticketBot.ticketCounters.get(interaction.guildId) || 0) + 1;
                 ticketBot.ticketCounters.set(interaction.guildId, counter);

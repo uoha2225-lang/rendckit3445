@@ -99,7 +99,7 @@ const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
 
     const adminRolesMention = adminRoleIds.length > 0 
         ? adminRoleIds.map(id => `<@&${id}>`).join(' ') 
-        : 'مسؤول عن النقل';
+        : 'ticket manager/Ticket Support';
 
     return new EmbedBuilder()
         .setAuthor({ 
