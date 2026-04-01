@@ -73,5 +73,50 @@
     "timestamp": "2026-04-01T14:25:32.119Z",
     "messageId": "1488907172560502894",
     "avatarURL": "https://cdn.discordapp.com/avatars/1359245683936329788/71e08f74d7fffb9e36e0c186dd23c6da.webp?size=256"
+  },
+  {
+    "id": "1775074362363_cnfbp",
+    "guildId": "1368993217499889664",
+    "userId": "1359245683936329788",
+    "username": "_r.1.",
+    "displayName": "!    #The General Cinedy",
+    "channelId": "1370113755274281070",
+    "rating": 5,
+    "originalText": "h",
+    "confidence": 1,
+    "category": "positive",
+    "timestamp": "2026-04-01T20:12:42.363Z",
+    "messageId": "1488994541200478349",
+    "avatarURL": "https://cdn.discordapp.com/avatars/1359245683936329788/71e08f74d7fffb9e36e0c186dd23c6da.webp?size=256"
+  },
+  {
+    "id": "1775075026709_etorq",
+    "guildId": "1368993217499889664",
+    "userId": "1359245683936329788",
+    "username": "_r.1.",
+    "displayName": "!    #The General Cinedy",
+    "channelId": "1370113755274281070",
+    "rating": 5,
+    "originalText": "ن",
+    "confidence": 1,
+    "category": "positive",
+    "timestamp": "2026-04-01T20:23:46.709Z",
+    "messageId": "1488997327275557005",
+    "avatarURL": "https://cdn.discordapp.com/avatars/1359245683936329788/71e08f74d7fffb9e36e0c186dd23c6da.webp?size=256"
+  },
+  {
+    "id": "1775075601824_z0k11",
+    "guildId": "1368993217499889664",
+    "userId": "1359245683936329788",
+    "username": "_r.1.",
+    "displayName": "!    #The General Cinedy",
+    "channelId": "1370113755274281070",
+    "rating": 5,
+    "originalText": "h",
+    "confidence": 1,
+    "category": "positive",
+    "timestamp": "2026-04-01T20:33:21.824Z",
+    "messageId": "1488999739977633912",
+    "avatarURL": "https://cdn.discordapp.com/avatars/1359245683936329788/71e08f74d7fffb9e36e0c186dd23c6da.webp?size=256"
   }
 ]
