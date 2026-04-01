@@ -10,12 +10,6 @@ const fs   = require('fs');
 const tokens  = require('./tokens.js');
 const db      = require('./database.js');
 const { analyzeMessage } = require('./review-analyzer.js');
-const {
-    buildTicketChannelTopic,
-    hasTicketAdminAccess,
-    parseTicketChannelTopic,
-    resolveTicketRoute,
-} = require('./ticket-routing.js');
 
 /* ═══════════════════════════════════════════════
    عميل عام
@@ -81,36 +75,6 @@ const isTicketTextCommand = (content = '') => {
     return ['تذكرة', '!تذكرة', 'ticket', '!ticket'].includes(n);
 };
 
-const buildDefaultDiscordAvatarURL = userId => {
-    try {
-        return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId || '0') % 6n)}.png`;
-    } catch {
-        return 'https://cdn.discordapp.com/embed/avatars/0.png';
-    }
-};
-
-const resolveTicketOwnerProfile = ({ member, user }) => ({
-    displayName: member?.displayName || user?.globalName || user?.displayName || user?.username || 'مجهول',
-    avatarURL: member?.displayAvatarURL?.({ dynamic: true, size: 256 })
-            || user?.displayAvatarURL?.({ dynamic: true, size: 256 })
-            || buildDefaultDiscordAvatarURL(user?.id),
-});
-
-const getInteractionMemberRoleIds = member =>
-    member?.roles?.cache ? [...member.roles.cache.keys()] : [];
-
-const hasAdministratorPermission = interaction =>
-    interaction.memberPermissions?.has?.(PermissionFlagsBits.Administrator)
-    || interaction.member?.permissions?.has?.(PermissionFlagsBits.Administrator)
-    || false;
-
-const isTicketAdminInteraction = interaction =>
-    hasTicketAdminAccess({
-        memberRoleIds: getInteractionMemberRoleIds(interaction.member),
-        channelTopic: interaction.channel?.topic || '',
-        isAdministrator: hasAdministratorPermission(interaction),
-    });
-
 /* ── سجل التذكرة ── */
 const sendTicketLog = async (ticketChannel, closedBy, action) => {
     try {
@@ -167,19 +131,29 @@ const createTicketOptionsEmbed = () =>
         .setImage(TICKET_EMBED_IMAGE_URL)
         .setColor(0x0099ff);
 
-const createTicketEmbed = ({ ticketType, ticketNumber, ownerDisplayName, ownerAvatarURL, supportLabel }) =>
-    new EmbedBuilder()
-        .setAuthor({ name: `👤 | مالك التذكرة: ${ownerDisplayName}`, iconURL: ownerAvatarURL })
+const createTicketEmbed = (ticketType, ticketNumber, user, guild) => {
+    const adminRoleIds = [
+        process.env.TICKET_ADMIN_ROLE_ID_1,
+        process.env.TICKET_ADMIN_ROLE_ID_2,
+    ].filter(id => id && id.length > 0);
+
+    const adminRolesMention = adminRoleIds.length > 0
+        ? adminRoleIds.map(id => `<@&${id}>`).join(' ')
+        : 'مسؤول عن النقل';
+
+    return new EmbedBuilder()
+        .setAuthor({ name: `👤 | مالك التذكرة: ${user.username}`, iconURL: TICKET_EMBED_IMAGE_URL })
         .addFields(
-            { name: '🛡️ | مشرفي التذاكر', value: supportLabel, inline: true },
-            { name: '📅 | تاريخ التذكرة', value: new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }), inline: false },
-            { name: '❓ | قسم التذكرة', value: `\` ${ticketType} \``, inline: true },
-            { name: '🔢 | رقم التذكرة', value: `\` ${ticketNumber} \``, inline: true },
+            { name: '🛡️ | مشرفي التذاكر',  value: adminRolesMention, inline: true  },
+            { name: '📅 | تاريخ التذكرة',    value: new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }), inline: false },
+            { name: '❓ | قسم التذكرة',      value: `\` ${ticketType} \``, inline: true },
+            { name: '🔢 | رقم التذكرة',      value: `\` ${ticketNumber} \``, inline: true },
         )
         .setColor(0x0099ff)
         .setImage(TICKET_EMBED_IMAGE_URL)
-        .setThumbnail(ownerAvatarURL || null)
+        .setThumbnail(TICKET_EMBED_IMAGE_URL)
         .setTimestamp();
+};
 
 const createTicketMainButton = () =>
     new ActionRowBuilder().addComponents(
@@ -531,7 +505,9 @@ ticketBot.on('interactionCreate', async interaction => {
                 return interaction.editReply(buildTicketMessage(createTicketOptionsEmbed(), { components: createTicketOptionsButtons() }));
             }
 
-            const isAdmin = isTicketAdminInteraction(interaction);
+            const adminRoleIds = [process.env.TICKET_ADMIN_ROLE_ID_1, process.env.TICKET_ADMIN_ROLE_ID_2].filter(Boolean);
+            const isAdmin = interaction.member.roles.cache.some(r => adminRoleIds.includes(r.id))
+                || interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
             if (interaction.customId === 'claim_ticket') {
                 if (!isAdmin) return interaction.reply({ content: '❌ للإدارة فقط.', ephemeral: true });
@@ -548,26 +524,22 @@ ticketBot.on('interactionCreate', async interaction => {
         if (interaction.isStringSelectMenu()) {
             if (interaction.customId === 'ticket_type_select') {
                 const type = interaction.values[0];
-                const route = resolveTicketRoute(type);
+                const typeNames = {
+                    ticket_buy_product: 'شراء منتج من المتجر',
+                    ticket_inquiry:     'استفسار',
+                    ticket_tech_support:'طلب دعم فني',
+                };
                 await interaction.deferReply({ ephemeral: true });
-
-                if (!route) {
-                    return interaction.editReply({ content: '❌ نوع التذكرة غير مدعوم.' });
-                }
 
                 let counter = (ticketBot.ticketCounters.get(interaction.guildId) || 0) + 1;
                 ticketBot.ticketCounters.set(interaction.guildId, counter);
-                const ownerProfile = resolveTicketOwnerProfile({
-                    member: interaction.member,
-                    user: interaction.user,
-                });
 
                 const categoryId = process.env.TICKET_CATEGORY_ID || tokens.TICKET_CATEGORY_ID;
                 const channel = await interaction.guild.channels.create({
                     name: `🎫・${counter}`,
                     type: ChannelType.GuildText,
                     parent: categoryId || null,
-                    topic: buildTicketChannelTopic(interaction.user.id, type),
+                    topic: `Owner: ${interaction.user.id}`,
                     permissionOverwrites: [
                         { id: interaction.guild.id,  deny: [PermissionFlagsBits.ViewChannel] },
                         { id: interaction.user.id,   allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
@@ -575,30 +547,19 @@ ticketBot.on('interactionCreate', async interaction => {
                     ],
                 });
 
-                for (const roleId of route.roleIds) {
-                    await channel.permissionOverwrites.edit(roleId, { ViewChannel: true, SendMessages: true });
-                }
+                const adminRoleIds = [process.env.TICKET_ADMIN_ROLE_ID_1, process.env.TICKET_ADMIN_ROLE_ID_2].filter(Boolean);
+                for (const rId of adminRoleIds) await channel.permissionOverwrites.edit(rId, { ViewChannel: true, SendMessages: true });
 
-                await channel.send(buildTicketMessage(createTicketEmbed({
-                    ticketType: route.displayName,
-                    ticketNumber: counter,
-                    ownerDisplayName: ownerProfile.displayName,
-                    ownerAvatarURL: ownerProfile.avatarURL,
-                    supportLabel: route.notificationTarget,
-                }), {
-                    content: `<@${interaction.user.id}> | ${route.notificationTarget}`,
+                await channel.send(buildTicketMessage(createTicketEmbed(typeNames[type], counter, interaction.user, interaction.guild), {
+                    content: `<@${interaction.user.id}> | فريق الدعم`,
                     components: [createTicketManageButtons()],
                 }));
 
-                await sendTicketLog(channel, interaction.user, `فتح تذكرة (${route.displayName})`);
+                await sendTicketLog(channel, interaction.user, `فتح تذكرة (${typeNames[type]})`);
                 return interaction.editReply(`تم فتح تذكرتك: ${channel}`);
             }
 
             if (interaction.customId === 'ticket_admin_options_select') {
-                if (!isTicketAdminInteraction(interaction)) {
-                    return interaction.reply({ content: '❌ للإدارة فقط.', ephemeral: true });
-                }
-
                 const opt = interaction.values[0];
                 if (opt === 'admin_unclaim') {
                     await interaction.channel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: null });
@@ -617,14 +578,12 @@ ticketBot.on('interactionCreate', async interaction => {
                     return interaction.showModal(m);
                 }
                 if (opt === 'admin_remind_member') {
-                    const ownerId = parseTicketChannelTopic(interaction.channel.topic).ownerId;
-                    if (!ownerId) return interaction.reply({ content: '❌ تعذر تحديد صاحب التذكرة.', ephemeral: true });
-
-                    const owner = await interaction.guild.members.fetch(ownerId).catch(() => null);
-                    if (!owner) return interaction.reply({ content: '❌ تعذر الوصول إلى صاحب التذكرة.', ephemeral: true });
-
-                    await owner.send(`🔔 تذكير بتذكرتك في **${interaction.guild.name}**: <#${interaction.channel.id}>`).catch(() => {});
-                    return interaction.reply({ content: '✅ تم التذكير.', ephemeral: true });
+                    const ownerId = interaction.channel.topic?.split('Owner: ')[1];
+                    if (ownerId) {
+                        const owner = await interaction.guild.members.fetch(ownerId).catch(() => null);
+                        if (owner) await owner.send(`🔔 تذكير بتذكرتك في **${interaction.guild.name}**: <#${interaction.channel.id}>`).catch(() => {});
+                        return interaction.reply({ content: '✅ تم التذكير.', ephemeral: true });
+                    }
                 }
                 if (opt === 'admin_transcript') {
                     const msgs    = await interaction.channel.messages.fetch({ limit: 100 });
@@ -1070,7 +1029,6 @@ module.exports = {
         createTicketOptionsEmbed,
         createTicketEmbed,
         buildTicketMessage,
-        resolveTicketOwnerProfile,
         TICKET_EMBED_IMAGE_NAME,
         TICKET_EMBED_IMAGE_URL,
     },
