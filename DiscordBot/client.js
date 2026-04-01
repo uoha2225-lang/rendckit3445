@@ -578,12 +578,13 @@ ticketBot.on('interactionCreate', async interaction => {
                     return interaction.showModal(m);
                 }
                 if (opt === 'admin_remind_member') {
-                    const ownerId = interaction.channel.topic?.split('Owner: ')[1];
+                    const ownerId = interaction.channel.topic?.split('Owner: ')[1]?.split(' ')[0];
                     if (ownerId) {
                         const owner = await interaction.guild.members.fetch(ownerId).catch(() => null);
                         if (owner) await owner.send(`🔔 تذكير بتذكرتك في **${interaction.guild.name}**: <#${interaction.channel.id}>`).catch(() => {});
                         return interaction.reply({ content: '✅ تم التذكير.', ephemeral: true });
                     }
+                    return interaction.reply({ content: '❌ لم يتم العثور على مالك التذكرة.', ephemeral: true });
                 }
                 if (opt === 'admin_transcript') {
                     const msgs    = await interaction.channel.messages.fetch({ limit: 100 });
@@ -599,6 +600,18 @@ ticketBot.on('interactionCreate', async interaction => {
             const { commandName: cmd } = interaction;
             if (cmd === 'تذكرة' || cmd === 'ticket')
                 return interaction.reply(buildTicketMessage(createTicketMainEmbed(), { components: createTicketOptionsButtons() }));
+            if (cmd === 'help') {
+                const helpEmbed = new EmbedBuilder()
+                    .setTitle('📋 قائمة الأوامر')
+                    .addFields(
+                        { name: '/تذكرة أو /ticket', value: 'فتح نظام التذاكر', inline: false },
+                        { name: '/سجلات_التذاكر',    value: 'تحديد روم سجلات التذاكر', inline: false },
+                        { name: '/help',              value: 'عرض قائمة الأوامر', inline: false },
+                    )
+                    .setColor(0x0099ff)
+                    .setTimestamp();
+                return interaction.reply({ embeds: [helpEmbed], ephemeral: true });
+            }
             if (cmd === 'سجلات_التذاكر') {
                 const channel = interaction.options.getChannel('channel');
                 ticketBot.logChannels.set(interaction.guildId, channel.id);
