@@ -1,0 +1,42 @@
+
+> discord-bots@1.0.0 start
+> node index.js
+
+[dotenv@17.3.1] injecting env (3) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+🚀 بدء تشغيل البوتات...
+🌐 HTTP Server يعمل على البورت 10000
+🔗 Health check: http://localhost:10000/health
+✅ تم تشغيل بوت التذاكر بنجاح
+Ticket Bot Ready: bot1488469099137859584#0966
+(node:77899) DeprecationWarning: The ready event has been renamed to clientReady to distinguish it from the gateway READY event and will only emit under that name in v15. Please use clientReady instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✅ Registered commands for bot1488469099137859584#0966
+✅ تم تشغيل بوت التقييمات بنجاح
+Review Bot Ready: review#2857
+✅ Registered commands for review#2857
+✅ تم تشغيل بوت مراقبة النشاط بنجاح
+
+🚀 تم تشغيل جميع البوتات المتاحة!
+
+🎫 أوامر بوت التذاكر (Slash Commands):
+   /تذكرة - فتح نظام التذاكر مع الأزرار
+   /ticket - Open ticket system (English)
+   /help - عرض الأوامر
+   • الأزرار: شكوى على إدارة عليا | تعويض | نقل | شكوى على إداري
+
+⭐ بوت التقييمات (Slash Commands + Text):
+   /تقييم [rating] - إرسال تقييم بالنجوم
+   /review [rating] - Send star rating (English)
+   أو اكتب رقم من 1-5 في أي رسالة (الطريقة القديمة)
+
+🎤 بوت مراقبة النشاط (Activity Tracking):
+   /مراقبة_النشاط - فتح لوحة مراقبة النشاط
+   /activity_monitor - Open activity monitoring panel (English)
+   /تقرير_النشاط - عرض تقرير مفصل
+   • ميزات: مراقبة الرومات الصوتية | حساب وقت التفاعل | تقارير مفصلة
+بوت مراقبة النشاط جاهز! مسجل باسم clone#0266
+بدء تسجيل أوامر بوت مراقبة النشاط...
+✅ تم تسجيل أوامر بوت مراقبة النشاط بنجاح
+(node:77899) Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
+💴 تم استلام إشارة SIGTERM, بدء إغلاق الخادم...
+🔴 تم إغلاق HTTP Server
