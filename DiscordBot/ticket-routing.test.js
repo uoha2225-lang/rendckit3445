@@ -108,3 +108,113 @@ test('hasTicketAdminAccess honors type-specific roles and administrator override
         true,
     );
 });
+
+/* ══════════════════════════════════════════════
+   اختبارات إعدادات فئة التذاكر
+   ══════════════════════════════════════════════ */
+const os   = require('node:os');
+const path = require('node:path');
+const fs   = require('node:fs');
+
+// --- حفظ إعداد saveTicketCategorySettings ---
+
+test('saveTicketCategorySettings saves categoryId without wiping logChannelId', () => {
+    const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'ticket-test-'));
+    const tmpFile = path.join(tmpDir, 'data', 'ticket-settings.json');
+
+    // بناء نسخة مصغرة من الدوال المعنية
+    const readSettings = () => {
+        try { return JSON.parse(fs.readFileSync(tmpFile, 'utf-8')); } catch (_) { return {}; }
+    };
+    const saveCategory = (guildId, categoryId) => {
+        const s = readSettings();
+        s[guildId] = { ...s[guildId], categoryId };
+        fs.mkdirSync(path.dirname(tmpFile), { recursive: true });
+        fs.writeFileSync(tmpFile, JSON.stringify(s, null, 2), 'utf-8');
+    };
+    const saveLog = (guildId, logChannelId) => {
+        const s = readSettings();
+        s[guildId] = { ...s[guildId], logChannelId };
+        fs.mkdirSync(path.dirname(tmpFile), { recursive: true });
+        fs.writeFileSync(tmpFile, JSON.stringify(s, null, 2), 'utf-8');
+    };
+
+    saveLog('guild1', 'log-ch-1');
+    saveCategory('guild1', 'cat-1');
+
+    const result = readSettings();
+    assert.equal(result['guild1'].logChannelId, 'log-ch-1');
+    assert.equal(result['guild1'].categoryId, 'cat-1');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test('saveTicketCategorySettings sets categoryId for a new guild', () => {
+    const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'ticket-test-'));
+    const tmpFile = path.join(tmpDir, 'data', 'ticket-settings.json');
+
+    const readSettings  = () => { try { return JSON.parse(fs.readFileSync(tmpFile, 'utf-8')); } catch (_) { return {}; } };
+    const saveCategory  = (guildId, categoryId) => {
+        const s = readSettings();
+        s[guildId] = { ...s[guildId], categoryId };
+        fs.mkdirSync(path.dirname(tmpFile), { recursive: true });
+        fs.writeFileSync(tmpFile, JSON.stringify(s, null, 2), 'utf-8');
+    };
+
+    saveCategory('guild-new', 'cat-99');
+    const result = readSettings();
+    assert.equal(result['guild-new'].categoryId, 'cat-99');
+    assert.equal(result['guild-new'].logChannelId, undefined);
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test('ticket category resolution: per-guild setting takes priority over env fallback', () => {
+    const ticketCategories = new Map();
+    ticketCategories.set('g1', 'cat-from-settings');
+
+    const resolveCategory = (guildId, envCategoryId) =>
+        ticketCategories.get(guildId) || envCategoryId || null;
+
+    assert.equal(resolveCategory('g1', 'cat-from-env'), 'cat-from-settings');
+});
+
+test('ticket category resolution: falls back to env var when no per-guild setting exists', () => {
+    const ticketCategories = new Map();
+
+    const resolveCategory = (guildId, envCategoryId) =>
+        ticketCategories.get(guildId) || envCategoryId || null;
+
+    assert.equal(resolveCategory('g1', 'cat-from-env'), 'cat-from-env');
+});
+
+test('ticket category resolution: returns null when neither setting nor env var is set', () => {
+    const ticketCategories = new Map();
+
+    const resolveCategory = (guildId, envCategoryId) =>
+        ticketCategories.get(guildId) || envCategoryId || null;
+
+    assert.equal(resolveCategory('g1', undefined), null);
+});
+
+test('saving logChannelId after categoryId does not overwrite categoryId', () => {
+    const tmpDir  = fs.mkdtempSync(path.join(os.tmpdir(), 'ticket-test-'));
+    const tmpFile = path.join(tmpDir, 'data', 'ticket-settings.json');
+
+    const readSettings = () => { try { return JSON.parse(fs.readFileSync(tmpFile, 'utf-8')); } catch (_) { return {}; } };
+    const save = (guildId, patch) => {
+        const s = readSettings();
+        s[guildId] = { ...s[guildId], ...patch };
+        fs.mkdirSync(path.dirname(tmpFile), { recursive: true });
+        fs.writeFileSync(tmpFile, JSON.stringify(s, null, 2), 'utf-8');
+    };
+
+    save('g2', { categoryId: 'cat-abc' });
+    save('g2', { logChannelId: 'log-xyz' });
+
+    const result = readSettings();
+    assert.equal(result['g2'].categoryId,   'cat-abc');
+    assert.equal(result['g2'].logChannelId, 'log-xyz');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+});

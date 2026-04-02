@@ -331,7 +331,9 @@ ticketBot.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
         const { commandName: cmd } = interaction;
         if (cmd === 'تذكرة' || cmd === 'ticket') {
-            return interaction.reply({ embeds: [createTicketMainEmbed()], components: [createTicketMainButton()] });
+            await interaction.deferReply({ ephemeral: true });
+            await interaction.channel.send({ embeds: [createTicketMainEmbed()], components: [createTicketMainButton()] });
+            return interaction.deleteReply();
         }
         if (cmd === 'سجلات_التذاكر') {
             const channel = interaction.options.getChannel('channel');

@@ -36,7 +36,8 @@ ticketBot.logChannels   = new Collection();
 ticketBot.cooldowns     = new Map();
 ticketBot.ticketCounters = new Map();
 ticketBot.ticketsByType = new Collection();
-ticketBot.ticketRoles   = new Collection();
+ticketBot.ticketRoles      = new Collection();
+ticketBot.ticketCategories = new Map();
 
 /* ── إعدادات لوقات التذاكر (حفظ دائم) ── */
 const TICKET_SETTINGS_FILE = path.join(__dirname, 'data', 'ticket-settings.json');
@@ -52,7 +53,15 @@ const readTicketSettings = () => {
 
 const saveTicketSettings = (guildId, logChannelId) => {
     const settings = readTicketSettings();
-    settings[guildId] = { logChannelId };
+    settings[guildId] = { ...settings[guildId], logChannelId };
+    const dir = path.dirname(TICKET_SETTINGS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(TICKET_SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+};
+
+const saveTicketCategorySettings = (guildId, categoryId) => {
+    const settings = readTicketSettings();
+    settings[guildId] = { ...settings[guildId], categoryId };
     const dir = path.dirname(TICKET_SETTINGS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(TICKET_SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
@@ -256,6 +265,9 @@ const ticketCommands = [
         .setName('تحديد_روم_لوقات_التذاكر').setDescription('تحديد الروم الذي تُرسل إليه لوقات التذاكر')
         .addChannelOption(opt => opt.setName('channel').setDescription('الروم').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+    new SlashCommandBuilder()
+        .setName('تحديد_فئة_التذاكر').setDescription('تحديد الفئة (Category) التي تُنشأ فيها قنوات التذاكر')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ];
 
 const reviewCommands = [
@@ -305,11 +317,12 @@ ticketBot.once('ready', async () => {
     await registerCommands(ticketBot, tokens.REMINDER_BOT_TOKEN, ticketCommands);
     // استعادة إعدادات لوقات التذاكر المحفوظة
     const savedSettings = readTicketSettings();
-    for (const [guildId, { logChannelId }] of Object.entries(savedSettings)) {
-        if (logChannelId) ticketBot.logChannels.set(guildId, logChannelId);
+    for (const [guildId, cfg] of Object.entries(savedSettings)) {
+        if (cfg.logChannelId) ticketBot.logChannels.set(guildId, cfg.logChannelId);
+        if (cfg.categoryId)   ticketBot.ticketCategories.set(guildId, cfg.categoryId);
     }
     if (Object.keys(savedSettings).length > 0)
-        console.log(`📋 Loaded ticket log channels for ${Object.keys(savedSettings).length} guild(s)`);
+        console.log(`📋 Loaded ticket settings for ${Object.keys(savedSettings).length} guild(s)`);
 });
 
 reviewBot.once('ready', async () => {
@@ -603,7 +616,9 @@ ticketBot.on('interactionCreate', async interaction => {
                 let counter = (ticketBot.ticketCounters.get(interaction.guildId) || 0) + 1;
                 ticketBot.ticketCounters.set(interaction.guildId, counter);
 
-                const categoryId = process.env.TICKET_CATEGORY_ID || tokens.TICKET_CATEGORY_ID;
+                const categoryId = ticketBot.ticketCategories.get(interaction.guildId)
+                    || process.env.TICKET_CATEGORY_ID
+                    || tokens.TICKET_CATEGORY_ID;
                 const channel = await interaction.guild.channels.create({
                     name: `🎫・${counter}`,
                     type: ChannelType.GuildText,
@@ -626,6 +641,25 @@ ticketBot.on('interactionCreate', async interaction => {
 
                 await sendTicketLog(channel, interaction.user, `فتح تذكرة (${typeNames[type]})`);
                 return interaction.editReply(`تم فتح تذكرتك: ${channel}`);
+            }
+
+            if (interaction.customId === 'ticket_category_select') {
+                const selectedId = interaction.values[0];
+                const category = interaction.guild.channels.cache.get(selectedId);
+                if (!category || category.type !== ChannelType.GuildCategory) {
+                    return interaction.reply({ content: '❌ الفئة المختارة لم تعد متاحة. حاول مجدداً.', ephemeral: true });
+                }
+                try {
+                    ticketBot.ticketCategories.set(interaction.guildId, selectedId);
+                    saveTicketCategorySettings(interaction.guildId, selectedId);
+                    return interaction.reply({
+                        content: `✅ تم تحديد الفئة: **${category.name}** لإدارة التذاكر.`,
+                        ephemeral: true,
+                    });
+                } catch (err) {
+                    console.error('خطأ في حفظ إعداد الفئة:', err);
+                    return interaction.reply({ content: '❌ حدث خطأ أثناء حفظ الإعداد. حاول مجدداً.', ephemeral: true });
+                }
             }
 
             if (interaction.customId === 'ticket_admin_options_select') {
@@ -667,15 +701,19 @@ ticketBot.on('interactionCreate', async interaction => {
         /* ── Slash Commands ── */
         if (interaction.isChatInputCommand()) {
             const { commandName: cmd } = interaction;
-            if (cmd === 'تذكرة' || cmd === 'ticket')
-                return interaction.reply(buildTicketMessage(createTicketMainEmbed(), { components: createTicketOptionsButtons() }));
+            if (cmd === 'تذكرة' || cmd === 'ticket') {
+                await interaction.deferReply({ ephemeral: true });
+                await interaction.channel.send(buildTicketMessage(createTicketMainEmbed(), { components: createTicketOptionsButtons() }));
+                return interaction.deleteReply();
+            }
             if (cmd === 'help') {
                 const helpEmbed = new EmbedBuilder()
                     .setTitle('📋 قائمة الأوامر')
                     .addFields(
-                        { name: '/تذكرة أو /ticket', value: 'فتح نظام التذاكر', inline: false },
-                        { name: '/تحديد_روم_لوقات_التذاكر', value: 'تحديد الروم الذي تُرسل إليه لوقات التذاكر', inline: false },
-                        { name: '/help',              value: 'عرض قائمة الأوامر', inline: false },
+                        { name: '/تذكرة أو /ticket',             value: 'فتح نظام التذاكر', inline: false },
+                        { name: '/تحديد_روم_لوقات_التذاكر',       value: 'تحديد الروم الذي تُرسل إليه لوقات التذاكر', inline: false },
+                        { name: '/تحديد_فئة_التذاكر',             value: 'تحديد الفئة (Category) التي تُنشأ فيها قنوات التذاكر', inline: false },
+                        { name: '/help',                          value: 'عرض قائمة الأوامر', inline: false },
                     )
                     .setColor(0x0099ff)
                     .setTimestamp();
@@ -686,6 +724,24 @@ ticketBot.on('interactionCreate', async interaction => {
                 ticketBot.logChannels.set(interaction.guildId, channel.id);
                 saveTicketSettings(interaction.guildId, channel.id);
                 return interaction.reply({ content: `✅ تم تحديد روم لوقات التذاكر: ${channel}`, ephemeral: true });
+            }
+            if (cmd === 'تحديد_فئة_التذاكر') {
+                const categories = interaction.guild.channels.cache
+                    .filter(ch => ch.type === ChannelType.GuildCategory)
+                    .map(ch => ({ label: ch.name.slice(0, 100), value: ch.id }));
+                if (categories.length === 0) {
+                    return interaction.reply({ content: '❌ لا توجد فئات (Categories) في هذا السيرفر. قم بإنشاء فئة واحدة على الأقل.', ephemeral: true });
+                }
+                const menu = new StringSelectMenuBuilder()
+                    .setCustomId('ticket_category_select')
+                    .setPlaceholder('اختر فئة التذاكر…')
+                    .addOptions(categories.slice(0, 25));
+                const row = new ActionRowBuilder().addComponents(menu);
+                return interaction.reply({
+                    content: 'اختر الفئة التي تُنشأ فيها قنوات التذاكر:',
+                    components: [row],
+                    ephemeral: true,
+                });
             }
         }
     } catch (error) {
@@ -749,7 +805,9 @@ reviewBot.on('interactionCreate', async interaction => {
                             .setStyle(ButtonStyle.Secondary)
                     )
                 );
-                return interaction.reply({ embeds: [embed], components: [buttons] });
+                await interaction.deferReply({ ephemeral: true });
+                await interaction.channel.send({ embeds: [embed], components: [buttons] });
+                return interaction.deleteReply();
             }
 
             /* ── تقييم بالأمر ── */
